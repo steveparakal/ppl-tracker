@@ -700,7 +700,7 @@ function enterApp(){
     boot.classList.add('hidden');
     app.style.display='flex';
     app.style.animation='fade-in .35s';
-    renderLog();
+    if(loadLogDraft()){const activeBtn=document.getElementById('day-'+currentDay);if(activeBtn){document.querySelectorAll('.day-btn').forEach(b=>b.classList.remove('active'));activeBtn.classList.add('active');document.getElementById('main-app').dataset.day=currentDay;}}renderLog();
     updateRestUI();
     initBackup();
   },350);
@@ -711,6 +711,7 @@ function showScreen(name,el){
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('screen-'+name).classList.add('active');
   if(el) el.classList.add('active');
+  window.scrollTo({top:0,behavior:'instant'});
   editingRow=null;pendingDelete=null;editingSession=null;pendingSessionDelete=null;
   if(pendingDeleteTimer){clearTimeout(pendingDeleteTimer);pendingDeleteTimer=null;}
   if(pendingSessionDeleteTimer){clearTimeout(pendingSessionDeleteTimer);pendingSessionDeleteTimer=null;}
@@ -723,7 +724,7 @@ function showScreen(name,el){
 function setDay(day,btn){
   const app=document.getElementById('main-app');
   app.classList.add('no-trans');
-  currentDay=day;logData={};
+  currentDay=day;logData={};try{sessionStorage.removeItem('ppl_draft');}catch(e){};
   app.dataset.day=day;
   document.querySelectorAll('.day-btn').forEach(b=>b.classList.remove('active'));
   if(btn) btn.classList.add('active');
@@ -780,9 +781,11 @@ function renderSets(ei,lastEx){
   });
 }
 
-function updateSet(ei,si,f,v){if(!logData[ei])logData[ei]=[];if(!logData[ei][si])logData[ei][si]={reps:'',weight:''};logData[ei][si][f]=v;}
-function addSet(ei){if(!logData[ei])logData[ei]=[];logData[ei].push({reps:'',weight:''});const last=getLastSession(exercises[currentDay][ei].name);renderSets(ei,last?last.ex:null);}
-function delSet(ei,si){if(logData[ei].length===1)return;logData[ei].splice(si,1);const last=getLastSession(exercises[currentDay][ei].name);renderSets(ei,last?last.ex:null);}
+function saveLogDraft(){try{sessionStorage.setItem('ppl_draft',JSON.stringify({day:currentDay,data:logData}));}catch(e){}}
+function loadLogDraft(){try{const d=JSON.parse(sessionStorage.getItem('ppl_draft')||'null');if(d&&d.day&&d.data){currentDay=d.day;logData=d.data;return true;}}catch(e){}return false;}
+function updateSet(ei,si,f,v){if(!logData[ei])logData[ei]=[];if(!logData[ei][si])logData[ei][si]={reps:'',weight:''};logData[ei][si][f]=v;saveLogDraft();}
+function addSet(ei){if(!logData[ei])logData[ei]=[];logData[ei].push({reps:'',weight:''});const last=getLastSession(exercises[currentDay][ei].name);renderSets(ei,last?last.ex:null);saveLogDraft();}
+function delSet(ei,si){if(logData[ei].length===1)return;logData[ei].splice(si,1);const last=getLastSession(exercises[currentDay][ei].name);renderSets(ei,last?last.ex:null);saveLogDraft();}
 
 function saveSession(btn){
   const exs=exercises[currentDay]||[];
@@ -804,8 +807,17 @@ function saveSession(btn){
   }
   if(!logged.length){toast('NO DATA TO COMMIT');return;}
   sessions.unshift({id:Date.now(),day:currentDay,date:new Date().toISOString(),exercises:logged});
-  persist();logData={};renderLog();
+  persist();logData={};try{sessionStorage.removeItem('ppl_draft');}catch(e){}renderLog();
   if(prs.length) showPR(prs); else toast('SESSION COMMITTED');
+  // eager backup on commit — don't wait for debounce
+  if(backupHandle){
+    clearTimeout(backupDebounceTimer);backupDebounceTimer=null;
+    autoBackupSilent().then(r=>{
+      if(r&&r.ok) toast('SESSION COMMITTED · BACKUP WRITTEN');
+      else if(r&&r.reason==='no-permission') toast('SESSION COMMITTED · RECONNECT BACKUP');
+      updateBackupStatus();
+    });
+  }
 }
 function showPR(prs){const t=document.getElementById('pr-toast');t.innerHTML=`NEW_PR × ${prs.length}<div class="pr-list">${prs.map(p=>`${p.name.toUpperCase()} · ${p.setInfo} → ${p.est1RM}kg est.1RM (prev ${p.prev1RM})`).join('<br>')}</div>`;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),7000);}
 
@@ -1152,9 +1164,15 @@ function commitRename(day){
   if(!inp) return;
   const newName=inp.value.trim();
   if(!newName){cancelRename(day);return;}
+  const oldName=editingRow.ex.name;
+  if(oldName===newName){cancelRename(day);return;}
+  // rewrite all historical session records so ghosts + charts stay intact
+  let rewritten=0;
+  sessions.forEach(s=>{s.exercises.forEach(e=>{if(e.name===oldName){e.name=newName;rewritten++;}});});
   editingRow.ex.name=newName;
   persist();editingRow=null;
-  renderManageList(day);toast('ENTRY RENAMED');
+  renderManageList(day);
+  toast(rewritten?`RENAMED · ${rewritten} SESSION${rewritten>1?'S':''} UPDATED`:'ENTRY RENAMED');
 }
 function cancelRename(day){editingRow=null;renderManageList(day);}
 function addExercise(day){const inp=document.getElementById('new-ex-'+day);const name=inp.value.trim();if(!name)return;exercises[day].push({name,note:''});persist();inp.value='';renderManageList(day);toast('ENTRY INSERTED');}
