@@ -862,8 +862,8 @@ function renderHistory(){
       <div class="session-tap" onclick="toggleDetail(${si})"><div class="session-date">${dateStr}</div><div class="session-meta">${s.exercises.length}_EX · ${setCount}_SETS</div></div>
       <div class="session-actions">
         <span class="day-tag">${s.day.toUpperCase()}</span>
-        ${isEditing?'':`<button class="icon-btn" onclick="startEditSession(${s.id})" aria-label="Edit"><i class="ti ti-edit" style="font-size:15px"></i></button>`}
-        ${isEditing?'':`<button class="icon-btn ${isPendingDel?'confirm-del':''}" onclick="deleteSession(${s.id})" aria-label="Delete"><i class="ti ti-trash" style="font-size:15px"></i></button>`}
+        ${isEditing?'':`<button class="icon-btn" onclick="startEditSession(${s.id})" aria-label="Edit">✎</button>`}
+        ${isEditing?'':`<button class="icon-btn ${isPendingDel?'confirm-del':''}" onclick="deleteSession(${s.id})" aria-label="Delete">✕</button>`}
       </div>
     </div>
     <div class="session-body ${bodyOpen}" id="detail-${si}">${setsHtml}</div>`;
@@ -1141,15 +1141,15 @@ function renderManageList(day){
     const isPending=pendingDelete&&pendingDelete.day===day&&pendingDelete.ex===ex;
     if(isEditing){
       row.innerHTML=`<input class="rename-inp" id="rename-inp-${day}" value="${escapeAttr(ex.name)}" />
-        <button class="icon-btn commit-ok" onclick="commitRename('${day}')" aria-label="Save"><i class="ti ti-check" style="font-size:16px"></i></button>
-        <button class="icon-btn" onclick="cancelRename('${day}')" aria-label="Cancel"><i class="ti ti-x" style="font-size:16px"></i></button>`;
+        <button class="icon-btn commit-ok" onclick="commitRename('${day}')" aria-label="Save">✓</button>
+        <button class="icon-btn" onclick="cancelRename('${day}')" aria-label="Cancel">✕</button>`;
     }else{
       row.innerHTML=`<span class="ex-row-name">${ex.name}</span>
         <div class="ex-row-actions">
           <button class="icon-btn" onclick="moveEx('${day}',${i},-1)" ${i===0?'disabled':''}>↑</button>
           <button class="icon-btn" onclick="moveEx('${day}',${i},1)" ${i===exercises[day].length-1?'disabled':''}>↓</button>
-          <button class="icon-btn" onclick="startRename('${day}',${i})" aria-label="Rename"><i class="ti ti-edit" style="font-size:14px"></i></button>
-          <button class="icon-btn ${isPending?'confirm-del':''}" onclick="deleteEx('${day}',${i})" aria-label="Delete"><i class="ti ti-trash" style="font-size:14px"></i></button>
+          <button class="icon-btn" onclick="startRename('${day}',${i})" aria-label="Rename">✎</button>
+          <button class="icon-btn ${isPending?'confirm-del':''}" onclick="deleteEx('${day}',${i})" aria-label="Delete">✕</button>
         </div>`;
     }
     list.appendChild(row);
