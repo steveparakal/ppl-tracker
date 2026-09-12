@@ -216,13 +216,13 @@ body{font-family:var(--mono);color:var(--text);font-size:13px;overflow-x:hidden;
 .manage-day.d-Pull .manage-day-label{background:var(--purple);color:#fff}
 .manage-day.d-Legs .manage-day-label{background:var(--blue)}
 .ex-row{display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:0.5px solid rgba(255,255,255,0.06);animation:row-in .15s both}
-.ex-row-name{flex:1;font-size:13px;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ex-row-name{flex:1;font-size:13px;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ex-row-actions{display:flex;align-items:center;gap:2px;flex-shrink:0}
 .rename-inp{flex:1;padding:6px 8px;font-size:13px;font-family:var(--mono);background:var(--bg);border-radius:0;color:var(--text);min-width:0}
 .manage-day.d-Push .rename-inp{border:1.5px solid var(--green);color:var(--green)}
 .manage-day.d-Pull .rename-inp{border:1.5px solid var(--purple);color:var(--purple)}
 .manage-day.d-Legs .rename-inp{border:1.5px solid var(--blue);color:var(--blue)}
 .rename-inp:focus{outline:none}
-.icon-btn{background:none;border:none;cursor:pointer;color:var(--muted);padding:4px;font-size:15px;line-height:1;transition:color .15s;flex-shrink:0}
+.icon-btn{background:none;border:none;cursor:pointer;color:var(--muted);padding:4px 3px;font-size:15px;line-height:1;transition:color .15s;flex-shrink:0}
 .manage-day.d-Push .icon-btn:hover{color:var(--green)}
 .manage-day.d-Pull .icon-btn:hover{color:var(--purple)}
 .manage-day.d-Legs .icon-btn:hover{color:var(--blue)}
@@ -1145,10 +1145,12 @@ function renderManageList(day){
         <button class="icon-btn" onclick="cancelRename('${day}')" aria-label="Cancel"><i class="ti ti-x" style="font-size:16px"></i></button>`;
     }else{
       row.innerHTML=`<span class="ex-row-name">${ex.name}</span>
-        <button class="icon-btn" onclick="moveEx('${day}',${i},-1)" ${i===0?'disabled':''}>↑</button>
-        <button class="icon-btn" onclick="moveEx('${day}',${i},1)" ${i===exercises[day].length-1?'disabled':''}>↓</button>
-        <button class="icon-btn" onclick="startRename('${day}',${i})" aria-label="Rename"><i class="ti ti-edit" style="font-size:14px"></i></button>
-        <button class="icon-btn ${isPending?'confirm-del':''}" onclick="deleteEx('${day}',${i})" aria-label="Delete"><i class="ti ti-trash" style="font-size:14px"></i></button>`;
+        <div class="ex-row-actions">
+          <button class="icon-btn" onclick="moveEx('${day}',${i},-1)" ${i===0?'disabled':''}>↑</button>
+          <button class="icon-btn" onclick="moveEx('${day}',${i},1)" ${i===exercises[day].length-1?'disabled':''}>↓</button>
+          <button class="icon-btn" onclick="startRename('${day}',${i})" aria-label="Rename"><i class="ti ti-edit" style="font-size:14px"></i></button>
+          <button class="icon-btn ${isPending?'confirm-del':''}" onclick="deleteEx('${day}',${i})" aria-label="Delete"><i class="ti ti-trash" style="font-size:14px"></i></button>
+        </div>`;
     }
     list.appendChild(row);
   });
