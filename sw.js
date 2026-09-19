@@ -1,6 +1,6 @@
 // SYS.PPL Service Worker
 // Bump this version whenever you deploy new HTML/CSS/JS so clients pick it up
-const CACHE_NAME = 'sys-ppl-v5';
+const CACHE_NAME = 'sys-ppl-v7';
 
 // App shell — everything needed for first paint offline
 const SHELL_ASSETS = [
@@ -16,7 +16,6 @@ const SHELL_ASSETS = [
 // after the first online load
 const CDN_ASSETS = [
   'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js',
-  'https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/dist/tabler-icons.min.css',
   'https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Oswald:wght@400;500;700&family=Bungee&display=swap'
 ];
 
