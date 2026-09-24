@@ -685,7 +685,7 @@ function showScreen(name,el){
   editingRow=null;pendingDelete=null;editingSession=null;pendingSessionDelete=null;
   if(pendingDeleteTimer){clearTimeout(pendingDeleteTimer);pendingDeleteTimer=null;}
   if(pendingSessionDeleteTimer){clearTimeout(pendingSessionDeleteTimer);pendingSessionDeleteTimer=null;}
-  if(name==='log') updateRestUI();
+  if(name==='log'){renderLog();updateRestUI();}
   if(name==='history') renderHistory();
   if(name==='progress') renderTrace();
   if(name==='manage'){renderManage();updateBackupStatus();}
