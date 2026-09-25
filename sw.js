@@ -1,6 +1,6 @@
 // SYS.PPL Service Worker
 // Bump this version whenever you deploy new HTML/CSS/JS so clients pick it up
-const CACHE_NAME = 'sys-ppl-v8';
+const CACHE_NAME = 'sys-ppl-v13';
 
 // App shell — everything needed for first paint offline
 const SHELL_ASSETS = [

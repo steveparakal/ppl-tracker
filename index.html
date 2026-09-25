@@ -393,46 +393,55 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 <script>
 const DEFAULT_EXERCISES={
   Push:[
-    {name:"Incline Press (BB/DB)",note:"upper chest compound — first, when freshest"},
-    {name:"Flat DB Press",note:"overall chest thickness"},
-    {name:"Up to Down Cable Flies",note:"peak contraction — upper chest focus"},
-    {name:"Converging Machine OHP",note:"main shoulder compound"},
-    {name:"Cable Lateral Raise",note:"lateral delts — push close to failure"},
-    {name:"Reverse Pec Dec",note:"rear delts"},
-    {name:"Overhead Cable Extension",note:"tricep long head — most important"},
-    {name:"Cable Pushdown",note:"tricep lateral head"},
+    {name:"Incline Bench Press",tag:"CHEST",note:"upper chest — first, when freshest. 30° bench, grip slightly wider than shoulders"},
+    {name:"Bench Press",tag:"CHEST",note:"overall chest thickness"},
+    {name:"High to Low Cable Fly",tag:"CHEST",note:"lower chest — constant tension and stretch"},
+    {name:"Converging Machine OHP",tag:"SHOULDER",note:"main shoulder compound"},
+    {name:"Cable Lateral Raise",tag:"SHOULDER",note:"lateral delts — push close to failure"},
+    {name:"Reverse Pec Dec",tag:"REAR_DELT",note:"rear delts"},
+    {name:"Overhead Cable Extension",tag:"TRICEP",note:"tricep long head — full stretch at the top"},
+    {name:"Cable Pushdown",tag:"TRICEP",note:"tricep lateral head"},
   ],
   Pull:[
-    {name:"Wide Grip Lat Pulldown",note:"lat width focus"},
-    {name:"Straight Arm Cable Pulldown",note:"isolates lats, no bicep involvement"},
-    {name:"Machine Row (Plate Loaded)",note:"mid back thickness"},
-    {name:"Cable Row",note:"horizontal pull, different angle"},
-    {name:"Rope Face Pull",note:"rear delts + external rotation — never skip"},
-    {name:"Preacher Curl",note:"best bicep isolation"},
-    {name:"Hammer Curl",note:"brachialis — pushes bicep up"},
-    {name:"Forearm Curl (Underhand)",note:"wrist flexors"},
+    {name:"Wide Grip Lat Pulldown",tag:"BACK",note:"main vertical pull"},
+    {name:"Straight Arm Cable Pulldown",tag:"BACK",note:"lats only — keep arms straight"},
+    {name:"Machine Row (Plate Loaded)",tag:"BACK",note:"mid back thickness"},
+    {name:"Cable Row",tag:"BACK",note:"controlled, don't lean back"},
+    {name:"Preacher Curl",tag:"BICEP",note:"moved up to break plateau — full stretch at bottom"},
+    {name:"Rope Face Pull",tag:"REAR_DELT",note:"rear delts + external rotation — both knees on a mat"},
+    {name:"Hammer Curl",tag:"BICEP",note:"brachialis"},
+    {name:"Forearm Curl (Underhand)",tag:"FOREARM",note:"wrist flexors — slow reps"},
   ],
   Legs:[
-    {name:"Smith Machine Squat",note:"feet slightly forward to protect knees"},
-    {name:"Leg Press",note:"additional quad volume"},
-    {name:"Leg Extension",note:"quad isolation — peak contraction"},
-    {name:"RDL",note:"main posterior chain compound — hip hinge"},
-    {name:"Hamstring Curl Machine",note:"knee flexion — complements RDL"},
-    {name:"Standing Calf Raise",note:"gastrocnemius — prioritise"},
-    {name:"Leg Press Calf Raise",note:"soleus — slight knee bend"},
-    {name:"Kneeling Cable Crunch",note:"weighted upper abs"},
-    {name:"Leg Raises",note:"lower abs"},
-    {name:"Pallof Press",note:"anti-rotation — obliques and deep core"},
+    {name:"Smith Machine Squat",tag:"QUAD",note:"feet slightly forward to protect knees"},
+    {name:"RDL",tag:"HAMSTRING",note:"compound — hinge at hips, flat back"},
+    {name:"Leg Extension",tag:"QUAD",note:"quad isolation — moderate weight, squeeze at top"},
+    {name:"Hamstring Curl Machine",tag:"HAMSTRING",note:"knee flexion — complements RDL"},
+    {name:"Standing Calf Raise",tag:"CALF",note:"weak point — full stretch, full range"},
+    {name:"Leg Press Calf Raise",tag:"CALF",note:"soleus — slight knee bend, barefoot friendly"},
+    {name:"Kneeling Cable Crunch",tag:"CORE",note:"round the spine, don't hinge at hips"},
+    {name:"Leg Raises",tag:"CORE",note:"lower abs — no swinging"},
+    {name:"Pallof Press",tag:"CORE",note:"anti-rotation — slow and controlled"},
   ]
 };
-const TAGS={Push:["CHEST","CHEST","CHEST","SHOULDER","SHOULDER","SHOULDER","TRICEP","TRICEP"],Pull:["BACK","BACK","BACK","BACK","REAR_DELT","BICEP","BICEP","FOREARM"],Legs:["QUAD","QUAD","QUAD","HAMSTRING","HAMSTRING","CALF","CALF","CORE","CORE","CORE"]};
 const DAY_COLORS={Push:'#A3FF12',Pull:'#A855F7',Legs:'#00B4FF'};
 const LIMIT_REPS=500,LIMIT_KG=1000;
 const HANDLE_DB='ppl_handles',HANDLE_STORE='handles',HANDLE_KEY='backup';
 
 let exercises=JSON.parse(localStorage.getItem('ppl_exercises')||'null')||JSON.parse(JSON.stringify(DEFAULT_EXERCISES));
-if(exercises.Push) exercises.Push=exercises.Push.map(e=>e.name==='Pec Deck'?{...e,name:'Up to Down Cable Flies',note:'peak contraction — upper chest focus'}:e);
 let sessions=JSON.parse(localStorage.getItem('ppl_sessions')||'[]');
+(function migrateProgramme(){
+  const V=5;
+  if(parseInt(localStorage.getItem('ppl_programme_v')||'0',10)>=V) return;
+  // same lift, new name → rewrite history so progress carries over
+  const RENAMES={'Up to Down Cable Flies':'High to Low Cable Fly','Pec Deck':'High to Low Cable Fly','Converging Chest Press':'Bench Press'};
+  sessions.forEach(s=>s.exercises.forEach(e=>{if(RENAMES[e.name]) e.name=RENAMES[e.name];}));
+  exercises=JSON.parse(JSON.stringify(DEFAULT_EXERCISES));
+  localStorage.setItem('ppl_exercises',JSON.stringify(exercises));
+  localStorage.setItem('ppl_sessions',JSON.stringify(sessions));
+  localStorage.removeItem('ppl_draft'); // draft is position-based; old positions no longer valid
+  localStorage.setItem('ppl_programme_v',String(V));
+})();
 let currentDay='Push',logData={},exChart=null,weekChart=null;
 let editingRow=null,pendingDelete=null,pendingDeleteTimer=null;
 let editingSession=null,pendingSessionDelete=null,pendingSessionDeleteTimer=null;
@@ -706,7 +715,6 @@ function setDay(day,btn){
 function renderLog(){
   const list=document.getElementById('exercise-list');
   const exs=exercises[currentDay]||[];
-  const tags=TAGS[currentDay]||[];
   if(!exs.length){list.innerHTML='<div class="empty">-- NO EXERCISES IN DATABASE --</div>';return;}
   list.innerHTML='';
   exs.forEach((ex,i)=>{
@@ -721,7 +729,7 @@ function renderLog(){
     card.className='ex-block';
     card.style.animationDelay=(i*40)+'ms';
     card.innerHTML=`<div class="ex-corner"></div>
-      <div class="ex-tag">${tags[i]||'ACC'}</div>
+      <div class="ex-tag">${ex.tag||'ACC'}</div>
       <div class="ex-head"><div><div class="ex-num">// EX_${String(i+1).padStart(2,'0')}</div><div class="ex-name glitch-wrap" data-text="${ex.name.toUpperCase()}">${ex.name.toUpperCase()}</div><div class="ex-note">${ex.note||''}</div></div></div>
       ${lastHtml}
       <div class="col-heads"><span class="col-head">REPS</span><span class="col-head">KG</span><span style="width:25px"></span></div>
