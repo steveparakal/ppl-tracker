@@ -430,19 +430,30 @@ const HANDLE_DB='ppl_handles',HANDLE_STORE='handles',HANDLE_KEY='backup';
 
 let exercises=JSON.parse(localStorage.getItem('ppl_exercises')||'null')||JSON.parse(JSON.stringify(DEFAULT_EXERCISES));
 let sessions=JSON.parse(localStorage.getItem('ppl_sessions')||'[]');
-(function migrateProgramme(){
-  const V=5;
-  if(parseInt(localStorage.getItem('ppl_programme_v')||'0',10)>=V) return;
-  // same lift, new name → rewrite history so progress carries over
+const PROGRAMME_V=6;
+// same lift, new name → rewrite history so progress carries over.
+// ONLY for data from before PROGRAMME_V (never on new data: a future
+// "Converging Chest Press" must not be renamed to Bench Press).
+function applyProgrammeFixes(sessArr){
   const RENAMES={'Up to Down Cable Flies':'High to Low Cable Fly','Pec Deck':'High to Low Cable Fly','Converging Chest Press':'Bench Press'};
-  sessions.forEach(s=>s.exercises.forEach(e=>{if(RENAMES[e.name]) e.name=RENAMES[e.name];}));
+  const MACHINE_SESSIONS=[1790254129031]; // 24 Sep: converging machine, not bench
+  sessArr.forEach(s=>s.exercises.forEach(e=>{
+    if(MACHINE_SESSIONS.includes(s.id)&&(e.name==='Converging Chest Press'||e.name==='Bench Press')){e.name='Converging Chest Press';return;}
+    if(RENAMES[e.name]) e.name=RENAMES[e.name];
+  }));
+}
+(function migrateProgramme(){
+  const V=PROGRAMME_V;
+  if(parseInt(localStorage.getItem('ppl_programme_v')||'0',10)>=V) return;
+  applyProgrammeFixes(sessions);
   exercises=JSON.parse(JSON.stringify(DEFAULT_EXERCISES));
   localStorage.setItem('ppl_exercises',JSON.stringify(exercises));
   localStorage.setItem('ppl_sessions',JSON.stringify(sessions));
   localStorage.removeItem('ppl_draft'); // draft is position-based; old positions no longer valid
   localStorage.setItem('ppl_programme_v',String(V));
 })();
-let currentDay='Push',logData={},exChart=null,weekChart=null;
+let currentDay='Push',drafts={Push:{},Pull:{},Legs:{}},exChart=null,weekChart=null;
+let toastTimer=null;
 let editingRow=null,pendingDelete=null,pendingDeleteTimer=null;
 let editingSession=null,pendingSessionDelete=null,pendingSessionDeleteTimer=null;
 let traceView='ex';
@@ -490,7 +501,7 @@ async function loadHandle(){try{const db=await openHandleDB();return new Promise
 async function deleteHandle(){const db=await openHandleDB();return new Promise((res,rej)=>{const tx=db.transaction(HANDLE_STORE,'readwrite');tx.objectStore(HANDLE_STORE).delete(HANDLE_KEY);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);});}
 
 /* ---- Backup operations ---- */
-function backupPayload(){return JSON.stringify({exported_at:new Date().toISOString(),version:'1.0',exercises,sessions},null,2);}
+function backupPayload(){return JSON.stringify({exported_at:new Date().toISOString(),version:'1.0',programme_v:PROGRAMME_V,exercises,sessions},null,2);}
 
 async function pickBackupFile(){
   if(!window.showSaveFilePicker){toast('AUTO_BACKUP NOT SUPPORTED');return;}
@@ -626,7 +637,10 @@ function updateBackupStatus(){
 /* ---- Import ---- */
 function triggerImport(){
   if(pendingImport){
-    exercises=pendingImport.exercises;sessions=pendingImport.sessions;
+    const oldFile=!(parseInt(pendingImport.programme_v||0,10)>=PROGRAMME_V);
+    sessions=pendingImport.sessions;
+    if(oldFile){applyProgrammeFixes(sessions);exercises=JSON.parse(JSON.stringify(DEFAULT_EXERCISES));}
+    else exercises=pendingImport.exercises;
     persist();
     const n=pendingImport.sessions.length;
     pendingImport=null;
@@ -691,7 +705,8 @@ function showScreen(name,el){
   document.getElementById('screen-'+name).classList.add('active');
   if(el) el.classList.add('active');
   window.scrollTo({top:0,behavior:'instant'});
-  editingRow=null;pendingDelete=null;editingSession=null;pendingSessionDelete=null;
+  discardSessionEdits(); // leaving mid-edit = CANCEL, never a silent half-save
+  editingRow=null;pendingDelete=null;pendingSessionDelete=null;
   if(pendingDeleteTimer){clearTimeout(pendingDeleteTimer);pendingDeleteTimer=null;}
   if(pendingSessionDeleteTimer){clearTimeout(pendingSessionDeleteTimer);pendingSessionDeleteTimer=null;}
   if(name==='log'){renderLog();updateRestUI();}
@@ -703,7 +718,7 @@ function showScreen(name,el){
 function setDay(day,btn){
   const app=document.getElementById('main-app');
   app.classList.add('no-trans');
-  currentDay=day;logData={};try{localStorage.removeItem('ppl_draft');}catch(e){};
+  currentDay=day;saveLogDraft(); // other days' drafts are kept, nothing is wiped
   app.dataset.day=day;
   document.querySelectorAll('.day-btn').forEach(b=>b.classList.remove('active'));
   if(btn) btn.classList.add('active');
@@ -718,7 +733,8 @@ function renderLog(){
   if(!exs.length){list.innerHTML='<div class="empty">-- NO EXERCISES IN DATABASE --</div>';return;}
   list.innerHTML='';
   exs.forEach((ex,i)=>{
-    if(!logData[i]) logData[i]=[{reps:'',weight:''}];
+    const d=drafts[currentDay];
+    if(!d[ex.name]) d[ex.name]=[{reps:'',weight:''}];
     const last=getLastSession(ex.name);
     let lastHtml='';
     if(last){
@@ -744,7 +760,8 @@ function renderSets(ei,lastEx){
   const c=document.getElementById('sets-'+ei);
   if(!c) return;
   c.innerHTML='';
-  (logData[ei]||[]).forEach((s,si)=>{
+  const exName=(exercises[currentDay][ei]||{}).name;
+  (drafts[currentDay][exName]||[]).forEach((s,si)=>{
     const lastSet=lastEx&&lastEx.sets[si];
     const rph=lastSet?lastSet.reps:'--';
     const wph=lastSet?lastSet.weight:'--';
@@ -759,18 +776,36 @@ function renderSets(ei,lastEx){
   });
 }
 
-function saveLogDraft(){try{localStorage.setItem('ppl_draft',JSON.stringify({day:currentDay,data:logData}));}catch(e){}}
-function loadLogDraft(){try{const d=JSON.parse(localStorage.getItem('ppl_draft')||'null');if(d&&d.day&&d.data){const hasData=Object.values(d.data).some(sets=>sets.some(s=>s.reps!==''||s.weight!==''));if(!hasData){localStorage.removeItem('ppl_draft');return false;}currentDay=d.day;logData=d.data;return true;}}catch(e){}return false;}
-function updateSet(ei,si,f,v){if(!logData[ei])logData[ei]=[];if(!logData[ei][si])logData[ei][si]={reps:'',weight:''};logData[ei][si][f]=v;saveLogDraft();}
-function addSet(ei){if(!logData[ei])logData[ei]=[];logData[ei].push({reps:'',weight:''});const last=getLastSession(exercises[currentDay][ei].name);renderSets(ei,last?last.ex:null);saveLogDraft();}
-function delSet(ei,si){if(logData[ei].length===1)return;logData[ei].splice(si,1);const last=getLastSession(exercises[currentDay][ei].name);renderSets(ei,last?last.ex:null);saveLogDraft();}
+function saveLogDraft(){try{localStorage.setItem('ppl_draft',JSON.stringify({v:2,day:currentDay,drafts}));}catch(e){}}
+function draftHasData(dayDraft){return Object.values(dayDraft||{}).some(sets=>(sets||[]).some(s=>s.reps!==''||s.weight!==''));}
+function loadLogDraft(){
+  try{
+    const d=JSON.parse(localStorage.getItem('ppl_draft')||'null');
+    if(!d) return false;
+    if(d.v===2&&d.drafts){
+      drafts={Push:{},Pull:{},Legs:{},...d.drafts};
+    }else if(d.day&&d.data){
+      // old position-based draft: map positions onto current exercise names once
+      const conv={};(exercises[d.day]||[]).forEach((ex,i)=>{if(d.data[i]) conv[ex.name]=d.data[i];});
+      drafts[d.day]=conv;
+    }else return false;
+    if(!['Push','Pull','Legs'].some(k=>draftHasData(drafts[k]))){localStorage.removeItem('ppl_draft');return false;}
+    if(d.day) currentDay=d.day;
+    return true;
+  }catch(e){}
+  return false;
+}
+function exNameAt(ei){return (exercises[currentDay][ei]||{}).name;}
+function updateSet(ei,si,f,v){const n=exNameAt(ei);if(!n)return;const d=drafts[currentDay];if(!d[n])d[n]=[];if(!d[n][si])d[n][si]={reps:'',weight:''};d[n][si][f]=v;saveLogDraft();}
+function addSet(ei){const n=exNameAt(ei);if(!n)return;const d=drafts[currentDay];if(!d[n])d[n]=[];d[n].push({reps:'',weight:''});const last=getLastSession(n);renderSets(ei,last?last.ex:null);saveLogDraft();}
+function delSet(ei,si){const n=exNameAt(ei);const d=drafts[currentDay];if(!n||!d[n]||d[n].length===1)return;d[n].splice(si,1);const last=getLastSession(n);renderSets(ei,last?last.ex:null);saveLogDraft();}
 
 function saveSession(btn){
   const exs=exercises[currentDay]||[];
   const logged=[];const prs=[];
   for(let i=0;i<exs.length;i++){
     const ex=exs[i];
-    const raw=(logData[i]||[]).filter(s=>s.reps!==''||s.weight!=='');
+    const raw=(drafts[currentDay][ex.name]||[]).filter(s=>s.reps!==''||s.weight!=='');
     if(!raw.length) continue;
     for(let si=0;si<raw.length;si++){
       const err=validateSet(raw[si],`${ex.name.toUpperCase()} S${si+1}`);
@@ -785,7 +820,7 @@ function saveSession(btn){
   }
   if(!logged.length){toast('NO DATA TO COMMIT');return;}
   sessions.unshift({id:Date.now(),day:currentDay,date:new Date().toISOString(),exercises:logged});
-  persist();logData={};try{localStorage.removeItem('ppl_draft');}catch(e){}renderLog();
+  persist();drafts[currentDay]={};saveLogDraft();renderLog(); // only this day's draft is cleared
   if(prs.length) showPR(prs); else toast('SESSION COMMITTED');
   // eager backup on commit — don't wait for debounce
   if(backupHandle){
@@ -863,11 +898,7 @@ function deleteEditingSet(exIdx,setIdx){
   const s=sessions.find(x=>x.id===editingSession.id);if(!s) return;
   s.exercises[exIdx].sets.splice(setIdx,1);
   if(s.exercises[exIdx].sets.length===0) s.exercises.splice(exIdx,1);
-  if(s.exercises.length===0){
-    sessions=sessions.filter(x=>x.id!==editingSession.id);
-    editingSession=null;persist();renderHistory();toast('SESSION EMPTIED · DELETED');return;
-  }
-  renderHistory();
+  renderHistory(); // nothing is saved until SAVE (SAVE removes an emptied session)
 }
 function saveSessionEdits(){
   const s=sessions.find(x=>x.id===editingSession.id);
@@ -884,11 +915,13 @@ function saveSessionEdits(){
   }
   persist();editingSession=null;renderHistory();toast('SESSION UPDATED');
 }
-function cancelSessionEdits(){
+function discardSessionEdits(){
+  if(!editingSession) return;
   const idx=sessions.findIndex(x=>x.id===editingSession.id);
   if(idx>=0) sessions[idx]=editingSession.snapshot;
-  editingSession=null;renderHistory();
+  editingSession=null;
 }
+function cancelSessionEdits(){discardSessionEdits();renderHistory();}
 function deleteSession(id){
   if(pendingSessionDelete===id){
     sessions=sessions.filter(s=>s.id!==id);
@@ -1146,6 +1179,8 @@ function commitRename(day){
   if(!newName){cancelRename(day);return;}
   const oldName=editingRow.ex.name;
   if(oldName===newName){cancelRename(day);return;}
+  if(exercises[day].some(e=>e!==editingRow.ex&&e.name===newName)){toast('NAME ALREADY USED ON THIS DAY');return;}
+  if(drafts[day]&&drafts[day][oldName]){drafts[day][newName]=drafts[day][oldName];delete drafts[day][oldName];saveLogDraft();}
   // rewrite all historical session records so ghosts + charts stay intact
   let rewritten=0;
   sessions.forEach(s=>{s.exercises.forEach(e=>{if(e.name===oldName){e.name=newName;rewritten++;}});});
@@ -1155,7 +1190,7 @@ function commitRename(day){
   toast(rewritten?`RENAMED · ${rewritten} SESSION${rewritten>1?'S':''} UPDATED`:'ENTRY RENAMED');
 }
 function cancelRename(day){editingRow=null;renderManageList(day);}
-function addExercise(day){const inp=document.getElementById('new-ex-'+day);const name=inp.value.trim();if(!name)return;exercises[day].push({name,note:''});persist();inp.value='';renderManageList(day);toast('ENTRY INSERTED');}
+function addExercise(day){const inp=document.getElementById('new-ex-'+day);const name=inp.value.trim();if(!name)return;if(exercises[day].some(e=>e.name===name)){toast('NAME ALREADY USED ON THIS DAY');return;}exercises[day].push({name,note:''});persist();inp.value='';renderManageList(day);toast('ENTRY INSERTED');}
 function deleteEx(day,i){
   const ex=exercises[day][i];
   if(pendingDelete&&pendingDelete.day===day&&pendingDelete.ex===ex){
@@ -1268,7 +1303,7 @@ function exportData(format){
   const a=document.createElement('a');a.href=url;a.download=filename;a.click();URL.revokeObjectURL(url);
   toast('EXPORT COMPLETE');
 }
-function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');if(toastTimer)clearTimeout(toastTimer);toastTimer=setTimeout(()=>{t.classList.remove('show');toastTimer=null;},2500);}
 
 initBoot();
 </script>
