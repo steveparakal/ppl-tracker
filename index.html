@@ -692,6 +692,8 @@ function validateBackup(d){
   }
   return null;
 }
+// back to the idle IMPORT_JSON look — after a confirmed import as well as when the confirm window expires
+function resetImportBtn(){const b=document.getElementById('import-btn');if(b){b.className='export-btn imp-json';b.textContent='▶ IMPORT_JSON';}}
 function triggerImport(){
   if(pendingImport){
     const oldFile=!(parseInt(pendingImport.programme_v||0,10)>=PROGRAMME_V);
@@ -702,7 +704,7 @@ function triggerImport(){
     const n=pendingImport.sessions.length;
     pendingImport=null;
     if(pendingImportTimer){clearTimeout(pendingImportTimer);pendingImportTimer=null;}
-    renderManage();updateBackupStatus();
+    resetImportBtn();renderManage();updateBackupStatus();
     toast(`IMPORT COMPLETE · ${n} SESSIONS LOADED`);
     return;
   }
@@ -722,11 +724,7 @@ async function handleImportFile(event){
     if(btn){btn.className='export-btn imp-confirm';btn.textContent=`▶ CONFIRM · REPLACE WITH ${data.sessions.length} SESSIONS FROM ${file.name.toUpperCase()}`;}
     toast(`READY · TAP IMPORT AGAIN TO CONFIRM`);
     if(pendingImportTimer) clearTimeout(pendingImportTimer);
-    pendingImportTimer=setTimeout(()=>{
-      pendingImport=null;pendingImportTimer=null;
-      const b=document.getElementById('import-btn');
-      if(b){b.className='export-btn imp-json';b.textContent='▶ IMPORT_JSON';}
-    },10000);
+    pendingImportTimer=setTimeout(()=>{pendingImport=null;pendingImportTimer=null;resetImportBtn();},10000);
   }catch(e){
     toast('IMPORT FAILED · INVALID JSON');console.error(e);
   }
