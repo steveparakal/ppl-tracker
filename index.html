@@ -396,6 +396,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 
     <div class="export-section">
       <div class="export-label">// DATA_TRANSFER</div>
+      <div id="export-status-block"></div>
       <button class="export-btn exp-json" onclick="exportData('json')">▶ EXPORT_JSON</button>
       <button class="export-btn exp-csv" onclick="exportData('csv')">▶ EXPORT_CSV</button>
       <button class="export-btn imp-json" id="import-btn" onclick="triggerImport()">▶ IMPORT_JSON</button>
@@ -535,8 +536,18 @@ async function deleteHandle(){const db=await openHandleDB();return new Promise((
 /* ---- Backup operations ---- */
 function backupPayload(){return JSON.stringify({exported_at:new Date().toISOString(),version:'1.0',programme_v:PROGRAMME_V,exercises,sessions},null,2);}
 
+// Linking writes the app's current data into the chosen file (and the save picker itself may clear an
+// existing file). With an empty app — e.g. right after clearing site data — that would wipe a real
+// backup, so an empty app needs a second tap and the user is told to import first.
+let emptyLinkArmedUntil=0;
 async function pickBackupFile(){
   if(!window.showSaveFilePicker){toast('AUTO_BACKUP NOT SUPPORTED');return;}
+  if(!sessions.length&&Date.now()>emptyLinkArmedUntil){
+    emptyLinkArmedUntil=Date.now()+5000;
+    toast('APP IS EMPTY · IMPORT YOUR BACKUP FIRST · TAP AGAIN FOR A NEW FILE');
+    return;
+  }
+  emptyLinkArmedUntil=0;
   try{
     const handle=await window.showSaveFilePicker({
       suggestedName:'sys_ppl_backup.json',
@@ -741,6 +752,14 @@ function initBoot(){
     el.innerHTML=`${ago} · <span>${esc(last.day.toUpperCase())}_DAY</span>`;
   }
 }
+// ask the browser not to evict our storage under pressure / after inactivity (Safari ITP).
+// Doesn't survive a user clearing site data — that's what exports are for.
+function requestPersistentStorage(){
+  try{
+    if(!navigator.storage||!navigator.storage.persist) return;
+    navigator.storage.persisted().then(p=>{if(!p) return navigator.storage.persist();}).catch(()=>{});
+  }catch(e){}
+}
 function enterApp(){
   const boot=document.getElementById('boot');
   const app=document.getElementById('main-app');
@@ -753,6 +772,7 @@ function enterApp(){
     if(loadLogDraft()){const activeBtn=document.getElementById('day-'+currentDay);if(activeBtn){document.querySelectorAll('.day-btn').forEach(b=>b.classList.remove('active'));activeBtn.classList.add('active');document.getElementById('main-app').dataset.day=currentDay;}}renderLog();
     updateRestUI();
     initBackup();
+    requestPersistentStorage();
   },350);
 }
 
@@ -1237,6 +1257,7 @@ function renderManage(){
     c.appendChild(sec);
     renderManageList(day);
   });
+  updateExportStatus();
 }
 function renderManageList(day){
   const list=document.getElementById('manage-list-'+day);
@@ -1415,6 +1436,20 @@ function playBeep(){
   }catch(e){}
 }
 
+// only a JSON export can be re-imported, so that's what counts as a backup here (CSV doesn't)
+function updateExportStatus(){
+  const b=document.getElementById('export-status-block');
+  if(!b) return;
+  if(!sessions.length){b.innerHTML='';return;}
+  let last=0;try{last=parseInt(localStorage.getItem('ppl_last_export')||'0',10)||0;}catch(e){}
+  const days=last?Math.floor((Date.now()-last)/86400000):null;
+  const cls=days===null||days>=7?'stale':days>=3?'warn':'ok';
+  const st=days===null?'<span class="st-stale">NEVER</span>':`<span class="st-${cls==='ok'?'good':cls}">${fmtAgo(last).toUpperCase()}</span>`;
+  b.innerHTML=`<div class="backup-status ${cls}">
+      <div><b>▪ LAST EXPORT:</b> ${st}</div>
+      <div>${cls==='ok'?'your history has a recent copy outside the browser.':'clearing site data or losing this phone would lose everything since then. export and keep the file somewhere safe.'}</div>
+    </div>`;
+}
 function exportData(format){
   const stamp=new Date().toISOString().slice(0,10);
   let content,filename,mime;
@@ -1429,7 +1464,9 @@ function exportData(format){
   }
   const blob=new Blob([content],{type:mime});
   const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');a.href=url;a.download=filename;a.click();URL.revokeObjectURL(url);
+  const a=document.createElement('a');a.href=url;a.download=filename;a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),4000); // revoking immediately can cancel the download on mobile Safari
+  if(format==='json'){try{localStorage.setItem('ppl_last_export',String(Date.now()));}catch(e){}updateExportStatus();}
   toast('EXPORT COMPLETE');
 }
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');if(toastTimer)clearTimeout(toastTimer);toastTimer=setTimeout(()=>{t.classList.remove('show');toastTimer=null;},2500);}
