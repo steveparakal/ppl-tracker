@@ -22,7 +22,7 @@ html,body{min-height:100vh;background:#080808;overscroll-behavior:none;-webkit-t
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Oswald:wght@400;500;700&family=Bungee&display=swap');
 *{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#080808;--card:#0d0d0d;--card2:#111;--text:#e8e8e8;--muted:#444;--sub:#777;--green:#A3FF12;--purple:#A855F7;--blue:#00B4FF;--red:#ff4466;--amber:#ffb84d;--mono:'Share Tech Mono',monospace;--cond:'Oswald',sans-serif;--pop:'Bungee',sans-serif;}
+:root{--bg:#080808;--card:#0d0d0d;--card2:#111;--text:#e8e8e8;--muted:#444;--sub:#777;--green:#A3FF12;--purple:#A855F7;--blue:#00B4FF;--red:#ff4466;--amber:#ffb84d;--ease:cubic-bezier(.2,.8,.2,1);--snap:cubic-bezier(.3,1.5,.5,1);--mono:'Share Tech Mono',monospace;--cond:'Oswald',sans-serif;--pop:'Bungee',sans-serif;}
 body{font-family:var(--mono);color:var(--text);font-size:13px;overflow-x:hidden;background-color:#080808;background-image:repeating-linear-gradient(0deg,rgba(0,0,0,0.06) 0px,rgba(0,0,0,0.06) 1px,transparent 1px,transparent 2px),radial-gradient(circle,rgba(255,255,255,0.05) 1px,transparent 1.1px);background-size:100% 2px,5px 5px}
 .app{max-width:420px;margin:0 auto;display:flex;flex-direction:column;position:relative}
 .app[data-day="Push"]{--active:var(--green);--on-active:#000;--active-dim:rgba(163,255,18,0.1);--active-dim2:rgba(163,255,18,0.25)}
@@ -31,19 +31,25 @@ body{font-family:var(--mono);color:var(--text);font-size:13px;overflow-x:hidden;
 .app.no-trans,.app.no-trans *,.app.no-trans *::before,.app.no-trans *::after{transition:none !important}
 @keyframes glitch{0%,90%,100%{clip-path:none;transform:none}91%{clip-path:polygon(0 20%,100% 20%,100% 40%,0 40%);transform:translate(-3px,0)}92%{clip-path:polygon(0 60%,100% 60%,100% 75%,0 75%);transform:translate(3px,0)}94%{clip-path:polygon(0 10%,100% 10%,100% 25%,0 25%);transform:translate(2px,0)}95%{clip-path:none;transform:none}}
 @keyframes glitch2{0%,90%,100%{clip-path:none;transform:none;opacity:0}91%{clip-path:polygon(0 20%,100% 20%,100% 40%,0 40%);transform:translate(3px,0);opacity:.7;color:var(--purple)}93%{clip-path:polygon(0 55%,100% 55%,100% 70%,0 70%);transform:translate(-3px,0);opacity:.7;color:var(--blue)}95%{clip-path:none;opacity:0}}
-@keyframes pulse-glow{0%,100%{box-shadow:0 0 4px var(--active-dim2)}50%{box-shadow:0 0 12px var(--active),0 0 24px var(--active-dim2)}}
-@keyframes pulse-text{0%,100%{text-shadow:0 0 6px var(--active-dim2)}50%{text-shadow:0 0 14px var(--active),0 0 28px var(--active-dim2)}}
+/* motion rule: loops animate only opacity/transform (compositor, no repaint); one-shots may paint */
+@keyframes breathe{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes screen-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes drop-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@keyframes sweep{from{transform:translateX(-101%)}to{transform:translateX(101%)}}
+@keyframes leave{to{opacity:0;transform:translateX(16px)}}
+@keyframes boot-out{to{opacity:0;transform:scale(.985)}}
+@keyframes day-pop{from{transform:translate(3px,3px) scale(.97)}to{transform:none}}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
 @keyframes count-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 @keyframes fade-out{to{opacity:0}}
 @keyframes fade-in{from{opacity:0}to{opacity:1}}
-@keyframes row-in{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
-@keyframes pr-pop{0%{transform:scale(1.08) rotate(-1deg)}100%{transform:scale(1) rotate(0)}}
-@keyframes pulse-red{0%,100%{opacity:1;color:var(--red)}50%{opacity:0.5;color:var(--red)}}
+@keyframes row-in{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+@keyframes pr-pop{0%{opacity:0;transform:scale(1.12) rotate(-2deg)}60%{opacity:1;transform:scale(.98) rotate(.5deg)}100%{transform:none}}
+@keyframes pulse-red{0%,100%{opacity:1}50%{opacity:.45}}
 @keyframes rest-done{0%,100%{box-shadow:0 0 0 var(--active);background:var(--card)}50%{box-shadow:0 0 24px var(--active);background:var(--active-dim)}}
 @keyframes flash-import{0%,100%{opacity:1}50%{opacity:0.6}}
 .boot{max-width:380px;margin:0 auto;display:flex;flex-direction:column;justify-content:center;padding:24px 20px;min-height:100dvh;min-height:100vh;position:relative}
-.boot.gone{animation:fade-out .35s forwards}
+.boot.gone{animation:boot-out .35s var(--ease) forwards}
 .boot.hidden{display:none}
 .boot-frame{position:relative;width:100%;display:flex;flex-direction:column;background:#080808}
 .b-top-bar{height:6px;background:linear-gradient(90deg,var(--green) 0%,var(--purple) 50%,var(--blue) 100%);margin-bottom:32px}
@@ -60,18 +66,21 @@ body{font-family:var(--mono);color:var(--text);font-size:13px;overflow-x:hidden;
 .b-meta{font-size:9px;color:var(--blue);letter-spacing:.14em;margin:14px 0 5px;padding-top:12px;border-top:1px dashed rgba(0,180,255,0.2)}
 .b-last{font-size:14px;color:#fff}
 .b-last span{color:var(--purple);font-family:var(--cond);font-weight:700;letter-spacing:.08em}
-.b-enter{width:100%;padding:15px;background:var(--purple);color:#fff;border:none;font-family:var(--pop);font-size:16px;letter-spacing:.2em;cursor:pointer;margin-top:28px;transition:opacity .15s}
-.b-enter:active{opacity:0.8}
+.b-enter{width:100%;padding:15px;background:var(--purple);color:#fff;border:none;font-family:var(--pop);font-size:16px;letter-spacing:.2em;cursor:pointer;margin-top:28px;box-shadow:5px 5px 0 rgba(168,85,247,.45);transition:transform .12s var(--ease),box-shadow .12s var(--ease)}
+.b-enter:active{transform:translate(3px,3px);box-shadow:2px 2px 0 rgba(168,85,247,.45)}
 .b-enter::before{content:'▶ '}
 .sys-header{display:flex;justify-content:space-between;align-items:center;padding:12px 14px 4px;position:relative;z-index:2}
 .sys-brand{font-family:var(--pop);font-size:16px;color:#fff;letter-spacing:.06em;position:relative}
 .sys-brand::before{content:'SYS.PPL';position:absolute;top:1px;left:1px;color:var(--active);z-index:-1;opacity:.85}
-.sys-status{font-size:10px;color:var(--active);letter-spacing:.08em;animation:pulse-text 2.5s infinite}
+.sys-status{font-size:10px;color:var(--active);letter-spacing:.08em;text-shadow:0 0 8px var(--active-dim2);animation:breathe 2.5s ease-in-out infinite}
+.sys-status.off{color:var(--red);text-shadow:none;animation:none}
 .sys-status::before{content:'● ';font-size:8px}
 .screen{display:none;padding:8px 12px 90px;position:relative;z-index:2}
-.screen.active{display:block;animation:fade-in .25s}
+.screen.active{display:block;animation:screen-in .3s var(--ease)}
 .day-row{display:flex;gap:6px;margin-bottom:12px}
-.day-btn{flex:1;padding:12px 4px;font-family:var(--pop);font-size:14px;letter-spacing:.1em;border:2px solid var(--muted);background:transparent;color:var(--muted);cursor:pointer;transition:transform .1s;position:relative}
+.day-btn{flex:1;padding:12px 4px;font-family:var(--pop);font-size:14px;letter-spacing:.1em;border:2px solid var(--muted);background:transparent;color:var(--muted);cursor:pointer;transition:transform .12s var(--ease),color .2s,border-color .2s;position:relative}
+.day-btn:active{transform:translate(2px,2px)}
+.day-btn.active{animation:day-pop .28s var(--snap)}
 .day-btn[data-c="green"].active{border-color:var(--green);color:#000;background:var(--green);box-shadow:4px 4px 0 var(--green)}
 .day-btn[data-c="purple"].active{border-color:var(--purple);color:#fff;background:var(--purple);box-shadow:4px 4px 0 var(--purple)}
 .day-btn[data-c="blue"].active{border-color:var(--blue);color:#000;background:var(--blue);box-shadow:4px 4px 0 var(--blue)}
@@ -84,16 +93,19 @@ body{font-family:var(--mono);color:var(--text);font-size:13px;overflow-x:hidden;
 .rest-time-display.warn{color:var(--red);animation:pulse-red 0.6s infinite}
 .rest-status-idle{font-family:var(--cond);font-weight:700;font-size:10px;color:var(--sub);letter-spacing:.14em}
 .rest-bar-outer{height:4px;background:rgba(255,255,255,0.06);margin-bottom:8px;position:relative;overflow:hidden}
-.rest-bar-fill{height:100%;background:var(--active);width:0%;transition:width 1s linear}
+.rest-bar-fill{height:100%;background:var(--active);transform-origin:left;transform:scaleX(0);will-change:transform}
 .rest-bar-fill.warn{background:var(--red)}
 .rest-controls{display:flex;gap:6px}
-.rest-btn{flex:1;padding:8px 4px;font-family:var(--cond);font-weight:700;font-size:11px;letter-spacing:.12em;border:1.5px solid var(--muted);background:transparent;color:var(--muted);cursor:pointer;transition:all .1s}
+.rest-btn{flex:1;padding:8px 4px;font-family:var(--cond);font-weight:700;font-size:11px;letter-spacing:.12em;border:1.5px solid var(--muted);background:transparent;color:var(--muted);cursor:pointer;transition:background .15s,color .15s,border-color .15s,transform .1s var(--ease)}
+.rest-btn:active{transform:scale(.96)}
 .rest-btn.primary{border-color:var(--active);color:var(--active)}
 .rest-btn.primary:hover{background:var(--active);color:var(--on-active)}
 .rest-btn.skip{border-color:var(--sub);color:var(--sub)}
 .rest-btn.skip:hover{border-color:var(--red);color:var(--red)}
-.ex-block{margin-bottom:8px;border:0.5px solid var(--active-dim2);background:var(--card);animation:row-in .2s both;position:relative;overflow:hidden}
-.ex-block:focus-within{border-color:var(--active);animation:pulse-glow 2s infinite}
+.ex-block{margin-bottom:8px;border:0.5px solid var(--active-dim2);background:var(--card);animation:row-in .32s var(--ease) both;position:relative;overflow:hidden;transition:border-color .2s}
+.ex-block::after{content:'';position:absolute;inset:0;pointer-events:none;z-index:4;box-shadow:inset 0 0 0 1px var(--active),inset 0 0 18px var(--active-dim2);opacity:0;transition:opacity .25s var(--ease)}
+.ex-block:focus-within{border-color:var(--active)}
+.ex-block:focus-within::after{opacity:1;animation:breathe 2.2s ease-in-out .25s infinite}
 .ex-corner{position:absolute;top:0;right:0;width:40px;height:40px;background:var(--active);clip-path:polygon(100% 0,100% 100%,0 0);opacity:.85;z-index:1}
 .ex-corner::after{content:'';position:absolute;inset:0;background-image:radial-gradient(circle,rgba(0,0,0,0.4) 1px,transparent 1.1px);background-size:4px 4px;clip-path:polygon(100% 0,100% 100%,0 0);mix-blend-mode:multiply}
 .ex-head{padding:10px 12px;border-bottom:0.5px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;align-items:flex-start;position:relative;z-index:2}
@@ -107,30 +119,35 @@ body{font-family:var(--mono);color:var(--text);font-size:13px;overflow-x:hidden;
 .col-heads{display:flex;gap:8px;padding:5px 12px 3px;background:var(--card2)}
 .col-head{flex:1;font-size:9px;color:var(--muted);text-align:center;letter-spacing:.1em}
 .sets-area{padding:6px 12px 8px;display:flex;flex-direction:column;gap:5px}
-.set-row{display:flex;gap:8px;align-items:center;animation:row-in .15s both}
+.set-row{display:flex;gap:8px;align-items:center;animation:row-in .22s var(--ease) both}
 .set-n{font-size:10px;color:var(--muted);width:18px;flex-shrink:0;letter-spacing:.06em}
-.set-inp{flex:1;padding:7px 6px;font-size:14px;font-family:var(--mono);border:0.5px solid var(--muted);background:var(--bg);color:var(--active);text-align:center;border-radius:0}
-.set-inp:focus{outline:none;border-color:var(--active);background:var(--active-dim);animation:pulse-glow 2s infinite}
+.set-inp{flex:1;padding:7px 6px;font-size:14px;font-family:var(--mono);border:0.5px solid var(--muted);background:var(--bg);color:var(--active);text-align:center;border-radius:0;transition:border-color .15s,background .15s,box-shadow .2s var(--ease)}
+.set-inp:focus{outline:none;border-color:var(--active);background:var(--active-dim);box-shadow:0 0 0 1px var(--active),0 0 12px var(--active-dim2)}
 .set-inp::placeholder{color:#333;font-style:italic}
 .set-del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:4px;line-height:1;transition:color .15s}
 .set-del:hover{color:var(--red)}
-.add-set{width:calc(100% - 24px);margin:2px 12px 8px;padding:7px;font-size:10px;color:var(--muted);background:none;border:0.5px dashed var(--muted);cursor:pointer;font-family:var(--mono);letter-spacing:.08em}
+.add-set{width:calc(100% - 24px);margin:2px 12px 8px;padding:7px;font-size:10px;color:var(--muted);background:none;border:0.5px dashed var(--muted);cursor:pointer;font-family:var(--mono);letter-spacing:.08em;transition:color .15s,border-color .15s,background .15s}
+.add-set:active{background:var(--active-dim2)}
 .add-set:hover{color:var(--active);border-color:var(--active-dim2);background:var(--active-dim)}
-.save-btn{width:100%;padding:14px;background:var(--active);color:var(--on-active);border:none;font-family:var(--pop);font-size:15px;letter-spacing:.18em;cursor:pointer;margin-top:12px;transition:transform .1s;box-shadow:6px 6px 0 var(--active)}
+.save-btn{width:100%;padding:14px;background:var(--active);color:var(--on-active);border:none;font-family:var(--pop);font-size:15px;letter-spacing:.18em;cursor:pointer;margin-top:12px;transition:transform .12s var(--ease),box-shadow .12s var(--ease);box-shadow:6px 6px 0 var(--active);position:relative;overflow:hidden}
+.save-btn::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.6),transparent);transform:translateX(-101%);pointer-events:none}
+.save-btn.flash::after{animation:sweep .6s var(--ease)}
 .save-btn::before{content:'▶ '}
 .save-btn:active{transform:translate(3px,3px);box-shadow:3px 3px 0 var(--active)}
-.pr-toast{display:none;text-align:center;padding:12px;background:var(--active);color:var(--on-active);font-family:var(--pop);letter-spacing:.2em;font-size:14px;margin:0 12px 12px;box-shadow:5px 5px 0 var(--active);position:relative;z-index:20;animation:pr-pop .35s}
+.pr-toast{display:none;text-align:center;padding:12px;background:var(--active);color:var(--on-active);font-family:var(--pop);letter-spacing:.2em;font-size:14px;margin:0 12px 12px;box-shadow:5px 5px 0 var(--active);position:relative;z-index:20;animation:pr-pop .45s var(--snap)}
 .pr-toast.show{display:block}
 .pr-list{font-size:10px;font-family:var(--mono);letter-spacing:.05em;margin-top:4px;line-height:1.5;font-weight:400}
 .section-label{font-family:var(--pop);font-size:15px;letter-spacing:.14em;margin-bottom:14px;padding:6px 10px;color:#000;display:inline-block;transform:rotate(-1deg);box-shadow:3px 3px 0 rgba(0,0,0,0.5);min-height:32px}
 #hist-label{background:var(--green)}
 #prog-label{background:var(--purple);color:#fff}
 #db-label{background:var(--blue)}
-.session-block{border:0.5px solid rgba(255,255,255,0.08);border-left-width:4px;margin-bottom:8px;background:var(--card);animation:row-in .2s both;position:relative}
+.session-block{border:0.5px solid rgba(255,255,255,0.08);border-left-width:4px;margin-bottom:8px;background:var(--card);animation:row-in .32s var(--ease) both;position:relative}
+.session-block.leaving{animation:leave .2s var(--ease) forwards;pointer-events:none}
 .session-block.d-Push{border-left-color:var(--green)}
 .session-block.d-Pull{border-left-color:var(--purple)}
 .session-block.d-Legs{border-left-color:var(--blue)}
-.session-block.editing{border-color:var(--purple);animation:pulse-glow 2s infinite}
+.session-block.editing{border-color:var(--purple)}
+.session-block.editing::after{content:'';position:absolute;inset:-1px;pointer-events:none;box-shadow:0 0 14px rgba(168,85,247,.55);animation:breathe 2.2s ease-in-out infinite}
 .session-top{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;gap:6px}
 .session-tap{flex:1;cursor:pointer;display:flex;flex-direction:column;min-width:0}
 .session-date{font-family:var(--cond);font-size:14px;font-weight:500;letter-spacing:.06em}
@@ -141,7 +158,7 @@ body{font-family:var(--mono);color:var(--text);font-size:13px;overflow-x:hidden;
 .session-block.d-Pull .day-tag{background:var(--purple);color:#fff}
 .session-block.d-Legs .day-tag{background:var(--blue);color:#000}
 .session-body{display:none;border-top:0.5px solid rgba(255,255,255,0.06);padding:10px 14px;background:var(--card2)}
-.session-body.open{display:block}
+.session-body.open{display:block;animation:drop-in .25s var(--ease)}
 .detail-ex{margin-bottom:10px}
 .detail-ex-name{font-size:11px;color:var(--sub);margin-bottom:4px;letter-spacing:.06em;font-family:var(--cond)}
 .detail-set{font-size:12px;color:var(--text);padding:1px 0}
@@ -162,7 +179,8 @@ body{font-family:var(--mono);color:var(--text);font-size:13px;overflow-x:hidden;
 .session-actions .icon-btn:hover{color:var(--text)}
 .session-actions .icon-btn.confirm-del{color:var(--red);animation:pulse-red 0.8s infinite}
 .stat-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:16px}
-.stat-card{background:var(--card);padding:14px;animation:count-in .3s both;position:relative;overflow:hidden}
+.stat-card{background:var(--card);padding:14px;animation:count-in .4s var(--ease) both;position:relative;overflow:hidden}
+.stat-card:nth-child(2){animation-delay:.06s}
 .stat-card:nth-child(1){border-top:3px solid var(--green)}
 .stat-card:nth-child(2){border-top:3px solid var(--purple)}
 .stat-label{font-family:var(--cond);font-weight:700;font-size:10px;color:var(--muted);letter-spacing:.14em;margin-bottom:6px}
@@ -170,7 +188,8 @@ body{font-family:var(--mono);color:var(--text);font-size:13px;overflow-x:hidden;
 .stat-card:nth-child(1) .stat-val{color:var(--green)}
 .stat-card:nth-child(2) .stat-val{color:var(--purple)}
 .trace-toggle{display:flex;gap:6px;margin-bottom:14px}
-.tv-btn{flex:1;padding:9px 4px;font-family:var(--cond);font-weight:700;font-size:11px;letter-spacing:.12em;border:1.5px solid var(--muted);background:transparent;color:var(--muted);cursor:pointer;transition:transform .1s}
+.tv-btn{flex:1;padding:9px 4px;font-family:var(--cond);font-weight:700;font-size:11px;letter-spacing:.12em;border:1.5px solid var(--muted);background:transparent;color:var(--muted);cursor:pointer;transition:transform .12s var(--ease),color .2s,border-color .2s,background .2s}
+.tv-btn:active{transform:scale(.97)}
 .tv-btn.active{color:var(--purple);border-color:var(--purple);background:rgba(168,85,247,0.08)}
 .ex-select{width:100%;padding:10px 12px;font-size:12px;font-family:var(--mono);border:1.5px solid var(--purple);background:var(--card);color:var(--purple);margin-bottom:14px;border-radius:0;appearance:none;letter-spacing:.04em}
 .ex-select:focus{outline:none}
@@ -183,7 +202,7 @@ body{font-family:var(--mono);color:var(--text);font-size:13px;overflow-x:hidden;
 .legend-dot.b{background:var(--blue)}
 .legend-dot.gray{background:rgba(120,120,120,0.5)}
 .legend-dot.pr{background:#fff;border:2px solid var(--purple);border-radius:50%;width:12px;height:12px}
-.chart-context{background:var(--card2);border-left:2px solid var(--purple);padding:12px 14px;margin-bottom:12px;font-family:var(--mono);font-size:11px;color:var(--text);letter-spacing:.03em;line-height:1.5}
+.chart-context{animation:drop-in .35s var(--ease) both;background:var(--card2);border-left:2px solid var(--purple);padding:12px 14px;margin-bottom:12px;font-family:var(--mono);font-size:11px;color:var(--text);letter-spacing:.03em;line-height:1.5}
 .ctx-title{font-family:var(--cond);font-weight:700;font-size:12px;letter-spacing:.1em;color:#fff;margin-bottom:8px;padding-bottom:6px;border-bottom:0.5px dashed rgba(255,255,255,0.1)}
 .ctx-title b{color:var(--purple);font-weight:700}
 .ctx-row{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:11px}
@@ -199,7 +218,7 @@ body{font-family:var(--mono);color:var(--text);font-size:13px;overflow-x:hidden;
 .manage-day.d-Push .manage-day-label{background:var(--green)}
 .manage-day.d-Pull .manage-day-label{background:var(--purple);color:#fff}
 .manage-day.d-Legs .manage-day-label{background:var(--blue)}
-.ex-row{display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:0.5px solid rgba(255,255,255,0.06);animation:row-in .15s both}
+.ex-row{display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:0.5px solid rgba(255,255,255,0.06);animation:row-in .22s var(--ease) both}
 .ex-row-name{flex:1;font-size:13px;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ex-row-actions{display:flex;align-items:center;gap:2px;flex-shrink:0}
 .rename-inp{flex:1;padding:6px 8px;font-size:13px;font-family:var(--mono);background:var(--bg);border-radius:0;color:var(--text);min-width:0}
 .manage-day.d-Push .rename-inp{border:1.5px solid var(--green);color:var(--green)}
@@ -239,7 +258,8 @@ body{font-family:var(--mono);color:var(--text);font-size:13px;overflow-x:hidden;
 .backup-status .st-warn{color:var(--amber)}
 .backup-status .st-stale{color:var(--red)}
 .backup-actions{display:flex;gap:6px;margin-top:10px}
-.backup-btn{flex:1;padding:9px 4px;background:transparent;color:var(--muted);border:1.5px solid var(--muted);font-family:var(--cond);font-weight:700;font-size:10px;letter-spacing:.1em;cursor:pointer;transition:all .15s}
+.backup-btn{flex:1;padding:9px 4px;background:transparent;color:var(--muted);border:1.5px solid var(--muted);font-family:var(--cond);font-weight:700;font-size:10px;letter-spacing:.1em;cursor:pointer;transition:background .15s,color .15s,border-color .15s,transform .1s var(--ease)}
+.backup-btn:active{transform:scale(.96)}
 .backup-btn.primary{border-color:var(--blue);color:var(--blue)}
 .backup-btn.primary:hover{background:var(--blue);color:#000}
 .backup-btn.warn-btn{border-color:var(--amber);color:var(--amber)}
@@ -248,7 +268,8 @@ body{font-family:var(--mono);color:var(--text);font-size:13px;overflow-x:hidden;
 .backup-btn.danger:hover{border-color:var(--red);color:var(--red)}
 .export-section{margin-top:20px;padding-top:18px;border-top:0.5px dashed rgba(255,255,255,0.1)}
 .export-label{font-family:var(--pop);font-size:12px;letter-spacing:.14em;padding:4px 10px;color:#000;background:var(--green);display:inline-block;margin-bottom:10px;transform:rotate(-1deg);box-shadow:2px 2px 0 rgba(0,0,0,0.4)}
-.export-btn{width:100%;padding:10px;background:transparent;color:#fff;border:1.5px solid var(--muted);font-family:var(--cond);font-weight:700;font-size:11px;letter-spacing:.1em;cursor:pointer;margin-bottom:8px;text-align:left;padding-left:14px}
+.export-btn{width:100%;padding:10px;background:transparent;color:#fff;border:1.5px solid var(--muted);font-family:var(--cond);font-weight:700;font-size:11px;letter-spacing:.1em;cursor:pointer;margin-bottom:8px;text-align:left;padding-left:14px;transition:background .15s,color .15s,padding-left .2s var(--ease)}
+.export-btn:hover{padding-left:20px}
 .export-btn.exp-json{border-color:var(--purple);color:var(--purple)}
 .export-btn.exp-json:hover{background:var(--purple);color:#fff}
 .export-btn.exp-csv{border-color:var(--blue);color:var(--blue)}
@@ -257,20 +278,24 @@ body{font-family:var(--mono);color:var(--text);font-size:13px;overflow-x:hidden;
 .export-btn.imp-json:hover{background:var(--green);color:#000}
 .export-btn.imp-confirm{border-color:var(--amber);color:var(--amber);animation:flash-import 0.8s infinite}
 .export-desc{font-size:10px;color:var(--muted);letter-spacing:.04em;line-height:1.6;margin-top:8px}
-.bottom-nav{display:flex;background:var(--card);border-top:2px solid var(--active);position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:420px;z-index:10}
-.nav-btn{flex:1;padding:11px 4px 9px;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);font-size:9px;font-family:var(--mono);letter-spacing:.08em;border-top:2px solid transparent;margin-top:-2px;transition:transform .1s}
+.bottom-nav{display:flex;background:var(--card);border-top:2px solid var(--active-dim2);position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:420px;z-index:10}
+.bottom-nav::before{content:'';position:absolute;top:-3px;left:0;width:25%;height:3px;background:var(--active);box-shadow:0 0 10px var(--active);transform:translateX(calc(var(--nav-i,0) * 100%));transition:transform .35s var(--snap)}
+.nav-btn{flex:1;padding:11px 4px 9px;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);font-size:9px;font-family:var(--mono);letter-spacing:.08em;transition:transform .12s var(--ease),color .2s}
 .nav-btn span{font-size:16px;line-height:1;margin-bottom:2px}
-.nav-btn.active{color:var(--active);border-top-color:var(--active);animation:pulse-text 2.5s infinite}
+.nav-btn.active{color:var(--active);text-shadow:0 0 8px var(--active-dim2)}
 .nav-btn:active{transform:scale(0.95)}
-.toast{display:block;text-align:center;font-family:var(--cond);font-weight:700;font-size:12px;color:#000;background:var(--active);letter-spacing:.14em;padding:8px 20px;margin:0 auto;width:fit-content;opacity:0;transition:opacity .2s;pointer-events:none;position:fixed;bottom:70px;left:50%;transform:translateX(-50%);z-index:50;box-shadow:3px 3px 0 rgba(0,0,0,0.5);max-width:calc(100% - 40px)}
+.toast{display:block;text-align:center;font-family:var(--cond);font-weight:700;font-size:12px;color:#000;background:var(--active);letter-spacing:.14em;padding:8px 20px;margin:0 auto;width:fit-content;opacity:0;transition:opacity .2s,transform .35s var(--snap);pointer-events:none;position:fixed;bottom:70px;left:50%;transform:translate(-50%,12px);z-index:50;box-shadow:3px 3px 0 rgba(0,0,0,0.5);max-width:calc(100% - 40px)}
 .app[data-day="Pull"] .toast{color:#fff}
-.toast.show{opacity:1}
+.toast.show{opacity:1;transform:translate(-50%,0)}
 .empty{text-align:center;padding:36px 20px;color:var(--muted);font-size:11px;line-height:2;letter-spacing:.06em}
 input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 .glitch-wrap{position:relative;display:inline-block}
 .glitch-wrap::before,.glitch-wrap::after{content:attr(data-text);position:absolute;top:0;left:0;width:100%;height:100%}
-.glitch-wrap::before{animation:glitch 5s infinite;color:var(--active)}
-.glitch-wrap::after{animation:glitch2 5s infinite}
+.glitch-wrap::before{color:var(--active)}
+.glitch-wrap::after{opacity:0}
+.ex-block:focus-within .glitch-wrap::before{animation:glitch 3s infinite}
+.ex-block:focus-within .glitch-wrap::after{animation:glitch2 3s infinite}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 </style>
 </head>
 <body>
@@ -477,6 +502,13 @@ function getMaxEst1RM(name){let max=0;for(const s of sessions){const e=s.exercis
 function findBestSet(sets){let best={est:0,reps:0,weight:0};sets.forEach(s=>{const w=parseFloat(s.weight)||0;const r=parseFloat(s.reps)||0;if(w<=0||r<=0) return;const est=epley1RM(w,r);if(est>best.est) best={est,reps:r,weight:w};});return best;}
 function findDayForExercise(name){for(const s of sessions){if(s.exercises.some(e=>e.name===name)) return s.day;}for(const d of ['Push','Pull','Legs']){if((exercises[d]||[]).some(e=>e.name===name)) return d;}return 'Push';}
 function epley1RM(w,r){return w*(1+r/30);}
+// escape anything user-typed or imported before it goes into innerHTML / attributes
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+const escapeAttr=esc;
+// bodyweight = every logged set is 0kg → progress is tracked by reps, not est.1RM
+function isBodyweight(sets){const valid=sets.filter(s=>(parseFloat(s.reps)||0)>0);return valid.length>0&&valid.every(s=>(parseFloat(s.weight)||0)===0);}
+function bestReps(sets){return sets.reduce((m,s)=>Math.max(m,parseFloat(s.reps)||0),0);}
+function getMaxReps(name){let max=0;for(const s of sessions){const e=s.exercises.find(x=>x.name===name);if(e&&isBodyweight(e.sets)) max=Math.max(max,bestReps(e.sets));}return max;}
 function localDateKey(d){const y=d.getFullYear();const m=String(d.getMonth()+1).padStart(2,'0');const day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`;}
 function parseLocalDateKey(k){const [y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d);}
 function fmtKg(v){return v>=10000?(v/1000).toFixed(1)+'k':v>=1000?Math.round(v/100)/10+'k':Math.round(v);}
@@ -610,7 +642,7 @@ function updateBackupStatus(){
   if(permBad){
     block.innerHTML=`<div class="backup-status warn">
       <div><b>▪ STATUS:</b> <span class="st-warn">RECONNECT NEEDED</span></div>
-      <div><b>file:</b> ${backupState.name}</div>
+      <div><b>file:</b> ${esc(backupState.name)}</div>
       <div><b>last write:</b> ${fmtAgo(last)}</div>
       <div>file access expired. tap RECONNECT to re-authorize.</div>
       <div class="backup-actions">
@@ -625,7 +657,7 @@ function updateBackupStatus(){
   const statTxt=daysSince>=7?'STALE':(daysSince>=3?'AGING':'LIVE');
   block.innerHTML=`<div class="backup-status ${cls}">
     <div><b>▪ STATUS:</b> <span class="${statCls}">${statTxt}</span></div>
-    <div><b>file:</b> ${backupState.name}</div>
+    <div><b>file:</b> ${esc(backupState.name)}</div>
     <div><b>last write:</b> ${fmtAgo(last)}</div>
     <div class="backup-actions">
       <button class="backup-btn primary" onclick="writeBackupNow().then(ok=>{if(ok){toast('BACKUP WRITTEN');updateBackupStatus();}})">▶ WRITE NOW</button>
@@ -635,6 +667,31 @@ function updateBackupStatus(){
 }
 
 /* ---- Import ---- */
+// returns null when the file is safe to load, otherwise a short reason naming the first bad entry
+function validateBackup(d){
+  const DAYS=['Push','Pull','Legs'];
+  const isNumLike=v=>v===''||(v!==null&&v!==undefined&&!isNaN(parseFloat(v)));
+  if(!d||typeof d!=='object') return 'not an object';
+  if(!d.exercises||typeof d.exercises!=='object') return 'missing exercises';
+  for(const day of DAYS){
+    if(!Array.isArray(d.exercises[day])) return `exercises.${day} missing`;
+    for(let i=0;i<d.exercises[day].length;i++){const e=d.exercises[day][i];if(!e||typeof e.name!=='string'||!e.name.trim()) return `${day} exercise #${i+1} has no name`;}
+  }
+  if(!Array.isArray(d.sessions)) return 'missing sessions';
+  for(let i=0;i<d.sessions.length;i++){
+    const s=d.sessions[i];const at=`session #${i+1}`;
+    if(!s||typeof s.id!=='number') return `${at}: bad id`;
+    if(!DAYS.includes(s.day)) return `${at}: unknown day "${String(s.day).slice(0,12)}"`;
+    if(isNaN(new Date(s.date).getTime())) return `${at}: bad date`;
+    if(!Array.isArray(s.exercises)) return `${at}: no exercises`;
+    for(const e of s.exercises){
+      if(!e||typeof e.name!=='string') return `${at}: exercise without name`;
+      if(!Array.isArray(e.sets)) return `${at}: ${e.name.slice(0,20)} has no sets`;
+      if(e.sets.some(st=>!st||!isNumLike(st.reps)||!isNumLike(st.weight))) return `${at}: ${e.name.slice(0,20)} has a bad set`;
+    }
+  }
+  return null;
+}
 function triggerImport(){
   if(pendingImport){
     const oldFile=!(parseInt(pendingImport.programme_v||0,10)>=PROGRAMME_V);
@@ -656,9 +713,10 @@ async function handleImportFile(event){
   if(!file) return;
   try{
     const text=await file.text();
-    const data=JSON.parse(text);
-    if(!data.exercises||!data.sessions||!Array.isArray(data.sessions)) throw new Error('missing fields');
-    if(!data.exercises.Push||!data.exercises.Pull||!data.exercises.Legs) throw new Error('exercises malformed');
+    let data;
+    try{data=JSON.parse(text);}catch(e){toast('IMPORT FAILED · INVALID JSON');event.target.value='';return;}
+    const bad=validateBackup(data);
+    if(bad){toast('IMPORT FAILED · '+bad.toUpperCase());event.target.value='';return;}
     pendingImport=data;
     const btn=document.getElementById('import-btn');
     if(btn){btn.className='export-btn imp-confirm';btn.textContent=`▶ CONFIRM · REPLACE WITH ${data.sessions.length} SESSIONS FROM ${file.name.toUpperCase()}`;}
@@ -682,7 +740,7 @@ function initBoot(){
     const d=new Date(last.date);
     const days=Math.floor((Date.now()-d.getTime())/86400000);
     let ago=days===0?'today':days===1?'yesterday':days+' days ago';
-    el.innerHTML=`${ago} · <span>${last.day.toUpperCase()}_DAY</span>`;
+    el.innerHTML=`${ago} · <span>${esc(last.day.toUpperCase())}_DAY</span>`;
   }
 }
 function enterApp(){
@@ -692,18 +750,29 @@ function enterApp(){
   setTimeout(()=>{
     boot.classList.add('hidden');
     app.style.display='flex';
-    app.style.animation='fade-in .35s';
+    app.style.animation='screen-in .4s cubic-bezier(.2,.8,.2,1)';
+    updateNetStatus();
     if(loadLogDraft()){const activeBtn=document.getElementById('day-'+currentDay);if(activeBtn){document.querySelectorAll('.day-btn').forEach(b=>b.classList.remove('active'));activeBtn.classList.add('active');document.getElementById('main-app').dataset.day=currentDay;}}renderLog();
     updateRestUI();
     initBackup();
   },350);
 }
 
+// header status reflects the real connection instead of a hard-coded ONLINE
+function updateNetStatus(){
+  const el=document.querySelector('.sys-status');if(!el) return;
+  const on=navigator.onLine;
+  el.textContent=on?'ONLINE':'OFFLINE';el.classList.toggle('off',!on);
+}
+window.addEventListener('online',updateNetStatus);
+window.addEventListener('offline',updateNetStatus);
+
 function showScreen(name,el){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('screen-'+name).classList.add('active');
   if(el) el.classList.add('active');
+  document.querySelector('.bottom-nav').style.setProperty('--nav-i',['log','history','progress','manage'].indexOf(name));
   window.scrollTo({top:0,behavior:'instant'});
   discardSessionEdits(); // leaving mid-edit = CANCEL, never a silent half-save
   editingRow=null;pendingDelete=null;pendingSessionDelete=null;
@@ -739,38 +808,38 @@ function renderLog(){
     let lastHtml='';
     if(last){
       const summary=last.ex.sets.map(s=>`${s.reps}×${s.weight}`).join(' · ');
-      lastHtml=`<div class="last-line">// LAST: <span>${summary}</span> kg</div>`;
+      lastHtml=`<div class="last-line">// LAST: <span>${esc(summary)}</span> kg</div>`;
     }
     const card=document.createElement('div');
     card.className='ex-block';
     card.style.animationDelay=(i*40)+'ms';
     card.innerHTML=`<div class="ex-corner"></div>
-      <div class="ex-tag">${ex.tag||'ACC'}</div>
-      <div class="ex-head"><div><div class="ex-num">// EX_${String(i+1).padStart(2,'0')}</div><div class="ex-name glitch-wrap" data-text="${ex.name.toUpperCase()}">${ex.name.toUpperCase()}</div><div class="ex-note">${ex.note||''}</div></div></div>
+      <div class="ex-tag">${esc(ex.tag||'ACC')}</div>
+      <div class="ex-head"><div><div class="ex-num">// EX_${String(i+1).padStart(2,'0')}</div><div class="ex-name glitch-wrap" data-text="${esc(ex.name.toUpperCase())}">${esc(ex.name.toUpperCase())}</div><div class="ex-note">${esc(ex.note||'')}</div></div></div>
       ${lastHtml}
       <div class="col-heads"><span class="col-head">REPS</span><span class="col-head">KG</span><span style="width:25px"></span></div>
       <div class="sets-area" id="sets-${i}"></div>
       <button class="add-set" onclick="addSet(${i})">+ ADD_SET</button>`;
     list.appendChild(card);
-    renderSets(i,last?last.ex:null);
+    renderSets(i);
   });
 }
-
-function renderSets(ei,lastEx){
+function renderSets(ei){
   const c=document.getElementById('sets-'+ei);
   if(!c) return;
   c.innerHTML='';
   const exName=(exercises[currentDay][ei]||{}).name;
+  const last=getLastSession(exName);
   (drafts[currentDay][exName]||[]).forEach((s,si)=>{
-    const lastSet=lastEx&&lastEx.sets[si];
+    const lastSet=last&&last.ex.sets[si];
     const rph=lastSet?lastSet.reps:'--';
     const wph=lastSet?lastSet.weight:'--';
     const row=document.createElement('div');
     row.className='set-row';
     row.style.animationDelay=(si*30)+'ms';
     row.innerHTML=`<span class="set-n">S${si+1}</span>
-      <input class="set-inp" type="number" min="0" max="${LIMIT_REPS}" placeholder="${rph}" value="${s.reps}" oninput="updateSet(${ei},${si},'reps',this.value)" aria-label="Reps">
-      <input class="set-inp" type="number" min="0" max="${LIMIT_KG}" step="0.5" placeholder="${wph}" value="${s.weight}" oninput="updateSet(${ei},${si},'weight',this.value)" aria-label="Weight kg">
+      <input class="set-inp" type="number" min="0" max="${LIMIT_REPS}" placeholder="${esc(rph)}" value="${esc(s.reps)}" oninput="updateSet(${ei},${si},'reps',this.value)" aria-label="Reps">
+      <input class="set-inp" type="number" min="0" max="${LIMIT_KG}" step="0.5" placeholder="${esc(wph)}" value="${esc(s.weight)}" oninput="updateSet(${ei},${si},'weight',this.value)" aria-label="Weight kg">
       <button class="set-del" onclick="delSet(${ei},${si})" aria-label="Remove">×</button>`;
     c.appendChild(row);
   });
@@ -797,8 +866,8 @@ function loadLogDraft(){
 }
 function exNameAt(ei){return (exercises[currentDay][ei]||{}).name;}
 function updateSet(ei,si,f,v){const n=exNameAt(ei);if(!n)return;const d=drafts[currentDay];if(!d[n])d[n]=[];if(!d[n][si])d[n][si]={reps:'',weight:''};d[n][si][f]=v;saveLogDraft();}
-function addSet(ei){const n=exNameAt(ei);if(!n)return;const d=drafts[currentDay];if(!d[n])d[n]=[];d[n].push({reps:'',weight:''});const last=getLastSession(n);renderSets(ei,last?last.ex:null);saveLogDraft();}
-function delSet(ei,si){const n=exNameAt(ei);const d=drafts[currentDay];if(!n||!d[n]||d[n].length===1)return;d[n].splice(si,1);const last=getLastSession(n);renderSets(ei,last?last.ex:null);saveLogDraft();}
+function addSet(ei){const n=exNameAt(ei);if(!n)return;const d=drafts[currentDay];if(!d[n])d[n]=[];d[n].push({reps:'',weight:''});renderSets(ei);saveLogDraft();}
+function delSet(ei,si){const n=exNameAt(ei);const d=drafts[currentDay];if(!n||!d[n]||d[n].length===1)return;d[n].splice(si,1);renderSets(ei);saveLogDraft();}
 
 function saveSession(btn){
   const exs=exercises[currentDay]||[];
@@ -812,6 +881,11 @@ function saveSession(btn){
       if(err){toast(err);return;}
     }
     logged.push({name:ex.name,sets:raw});
+    if(isBodyweight(raw)){
+      const prevReps=getMaxReps(ex.name);const r=bestReps(raw);
+      if(r>prevReps&&prevReps>0) prs.push({bw:true,name:ex.name,reps:r,prevReps,setInfo:`${r}r × BW`});
+      continue;
+    }
     const prev1RM=getMaxEst1RM(ex.name);
     const bestSet=findBestSet(raw);
     if(bestSet.est>prev1RM&&prev1RM>0){
@@ -821,6 +895,7 @@ function saveSession(btn){
   if(!logged.length){toast('NO DATA TO COMMIT');return;}
   sessions.unshift({id:Date.now(),day:currentDay,date:new Date().toISOString(),exercises:logged});
   persist();drafts[currentDay]={};saveLogDraft();renderLog(); // only this day's draft is cleared
+  if(btn){btn.classList.remove('flash');void btn.offsetWidth;btn.classList.add('flash');} // restart the sweep
   if(prs.length) showPR(prs); else toast('SESSION COMMITTED');
   // eager backup on commit — don't wait for debounce
   if(backupHandle){
@@ -832,7 +907,7 @@ function saveSession(btn){
     });
   }
 }
-function showPR(prs){const t=document.getElementById('pr-toast');t.innerHTML=`NEW_PR × ${prs.length}<div class="pr-list">${prs.map(p=>`${p.name.toUpperCase()} · ${p.setInfo} → ${p.est1RM}kg est.1RM (prev ${p.prev1RM})`).join('<br>')}</div>`;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),7000);}
+function showPR(prs){const t=document.getElementById('pr-toast');t.innerHTML=`NEW_PR × ${prs.length}<div class="pr-list">${prs.map(p=>esc(p.bw?`${p.name.toUpperCase()} · ${p.setInfo} → ${p.reps} reps (prev ${p.prevReps})`:`${p.name.toUpperCase()} · ${p.setInfo} → ${p.est1RM}kg est.1RM (prev ${p.prev1RM})`)).join('<br>')}</div>`;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),7000);}
 
 function renderHistory(){
   const list=document.getElementById('history-list');
@@ -851,11 +926,12 @@ function renderHistory(){
     const isEditing=editingSession&&editingSession.id===s.id;
     const isPendingDel=pendingSessionDelete===s.id;
     card.className='session-block d-'+s.day+(isEditing?' editing':'');
+    card.dataset.sid=s.id;
     card.style.animationDelay=(si*40)+'ms';
     const bodyOpen=isEditing?'open':'';
     let setsHtml='';
     s.exercises.forEach((e,ei)=>{
-      setsHtml+=`<div class="detail-ex"><div class="detail-ex-name">${e.name.toUpperCase()}</div>`;
+      setsHtml+=`<div class="detail-ex"><div class="detail-ex-name">${esc(e.name.toUpperCase())}</div>`;
       e.sets.forEach((st,setI)=>{
         if(isEditing){
           setsHtml+=`<div class="edit-set-row"><span class="set-n">S${setI+1}</span>
@@ -865,7 +941,7 @@ function renderHistory(){
             <span class="mini-unit">kg</span>
             <button class="mini-del" onclick="deleteEditingSet(${ei},${setI})" aria-label="Delete set">×</button></div>`;
         }else{
-          setsHtml+=`<div class="detail-set">S${setI+1} → ${st.reps}r × ${st.weight}kg</div>`;
+          setsHtml+=`<div class="detail-set">S${setI+1} → ${esc(st.reps)}r × ${esc(st.weight)}kg</div>`;
         }
       });
       setsHtml+=`</div>`;
@@ -927,7 +1003,11 @@ function deleteSession(id){
     sessions=sessions.filter(s=>s.id!==id);
     pendingSessionDelete=null;
     if(pendingSessionDeleteTimer){clearTimeout(pendingSessionDeleteTimer);pendingSessionDeleteTimer=null;}
-    persist();renderHistory();toast('SESSION DELETED');return;
+    persist();toast('SESSION DELETED');
+    // data is already gone; let the card slide out before the list re-renders
+    const el=document.querySelector(`.session-block[data-sid="${id}"]`);
+    if(el){el.classList.add('leaving');setTimeout(renderHistory,200);}else renderHistory();
+    return;
   }
   pendingSessionDelete=id;
   if(pendingSessionDeleteTimer) clearTimeout(pendingSessionDeleteTimer);
@@ -946,16 +1026,27 @@ function switchTraceView(v){
 function renderTrace(){
   const sel=document.getElementById('progress-ex');
   const all=[...new Set(sessions.flatMap(s=>s.exercises.map(e=>e.name)))];
-  sel.innerHTML=all.length?all.map(e=>`<option value="${e}">${e.toUpperCase()}</option>`).join(''):'<option>-- NO DATA --</option>';
+  const prev=sel.value;
+  sel.innerHTML=all.length?all.map(e=>`<option value="${esc(e)}">${esc(e.toUpperCase())}</option>`).join(''):'<option>-- NO DATA --</option>';
+  if(prev&&all.includes(prev)) sel.value=prev;
   if(traceView==='ex') renderExChart(); else renderWeekChart();
 }
 
+// points carry `est1RM` = the progress metric: est.1RM for loaded lifts, best reps for bodyweight
+// (bw:true). volume for bodyweight = total reps.
 function computeExData(name){
   const chrono=[...sessions].reverse();
   const points=[];let runningMax=0;
   chrono.forEach(s=>{
     const ex=s.exercises.find(e=>e.name===name);
     if(!ex) return;
+    if(isBodyweight(ex.sets)){
+      const r=bestReps(ex.sets);if(r<=0) return;
+      const tot=ex.sets.reduce((a,st)=>a+(parseFloat(st.reps)||0),0);
+      const isPR=runningMax>0&&r>runningMax;if(r>runningMax) runningMax=r;
+      points.push({date:new Date(s.date),est1RM:r,volume:tot,isPR,sets:ex.sets.length,bw:true});
+      return;
+    }
     let best1RM=0,vol=0,validSets=0;
     ex.sets.forEach(st=>{
       const w=parseFloat(st.weight)||0;
@@ -980,11 +1071,21 @@ function renderExChart(){
   const block=document.getElementById('ex-chart-block');
   const empty=document.getElementById('ex-empty');
   if(!name||name==='-- NO DATA --'){block.style.display='none';empty.style.display='';empty.innerHTML='-- NO DATA --<br>LOG A SESSION TO POPULATE.';return;}
-  const pts=computeExData(name);
+  const allPts=computeExData(name);
+  // never mix units on one chart: follow whatever the most recent session was
+  const bw=allPts.length?!!allPts[allPts.length-1].bw:false;
+  const pts=allPts.filter(p=>!!p.bw===bw);
+  const U=bw?{metric:'BEST REPS',short:'reps',unit:'',vol:'TOTAL REPS',volUnit:' reps',axis:'BEST REPS',volAxis:'TOTAL REPS',legend:'BEST_REPS'}
+            :{metric:'EST 1RM',short:'kg est.1RM',unit:'kg',vol:'VOLUME',volUnit:'kg',axis:'1RM (KG)',volAxis:'VOLUME (KG)',legend:'EST_1RM'};
+  const lineLegend=document.querySelector('#ex-chart-block .chart-legend span');
+  if(lineLegend) lineLegend.lastChild.textContent=U.legend;
+  const chartLbl=document.querySelector('#ex-chart-block .chart-label');
+  if(chartLbl) chartLbl.textContent=bw?'// BEST_REPS (LINE) + TOTAL_REPS (BARS) → TIME':'// EST_1RM (LINE) + VOLUME (BARS) → TIME';
   if(!pts.length){block.style.display='none';empty.style.display='';empty.innerHTML='-- NO VALID DATA --<br>LOG SETS WITH BOTH REPS AND WEIGHT.';return;}
   if(pts.length===1){
     block.style.display='none';empty.style.display='';
-    empty.innerHTML=`-- ONLY 1 SESSION LOGGED --<br>CURRENT: ${pts[0].est1RM}kg est.1RM · ${pts[0].volume}kg vol<br>LOG AGAIN TO SEE TREND.`;
+    empty.innerHTML=bw?`-- ONLY 1 SESSION LOGGED --<br>CURRENT: ${pts[0].est1RM} best reps · ${pts[0].volume} total reps<br>LOG AGAIN TO SEE TREND.`
+      :`-- ONLY 1 SESSION LOGGED --<br>CURRENT: ${pts[0].est1RM}kg est.1RM · ${pts[0].volume}kg vol<br>LOG AGAIN TO SEE TREND.`;
     return;
   }
   block.style.display='';empty.style.display='none';
@@ -994,17 +1095,17 @@ function renderExChart(){
   document.getElementById('ex-pr-dot').style.borderColor=color;
 
   const first=pts[0],last=pts[pts.length-1];
-  const dRM=fmtDelta(last.est1RM-first.est1RM,'kg');
-  const dVol=fmtDelta(last.volume-first.volume,'kg');
+  const dRM=fmtDelta(last.est1RM-first.est1RM,bw?' reps':'kg');
+  const dVol=fmtDelta(last.volume-first.volume,U.volUnit);
   const prCount=pts.filter(p=>p.isPR).length;
   const avgVol=Math.round(pts.reduce((a,p)=>a+p.volume,0)/pts.length);
   const ctx=document.getElementById('ex-context');
-  ctx.innerHTML=`<div class="ctx-title"><b>${name.toUpperCase()}</b> · ${pts.length} sessions</div>
-    <div class="ctx-row"><span class="ctx-label">EST 1RM</span><span class="ctx-val">${first.est1RM} → ${last.est1RM} kg</span><span class="ctx-delta ${dRM.cls}">${dRM.text}</span></div>
-    <div class="ctx-row"><span class="ctx-label">VOLUME</span><span class="ctx-val">${first.volume} → ${last.volume} kg</span><span class="ctx-delta ${dVol.cls}">${dVol.text}</span></div>
-    <div class="ctx-row"><span class="ctx-label">AVG VOL</span><span class="ctx-val">${avgVol} kg / session</span></div>
+  ctx.innerHTML=`<div class="ctx-title"><b>${esc(name.toUpperCase())}</b> · ${pts.length} sessions</div>
+    <div class="ctx-row"><span class="ctx-label">${U.metric}</span><span class="ctx-val">${first.est1RM} → ${last.est1RM}${U.unit?' '+U.unit:''}</span><span class="ctx-delta ${dRM.cls}">${dRM.text}</span></div>
+    <div class="ctx-row"><span class="ctx-label">${U.vol}</span><span class="ctx-val">${first.volume} → ${last.volume}${U.volUnit}</span><span class="ctx-delta ${dVol.cls}">${dVol.text}</span></div>
+    <div class="ctx-row"><span class="ctx-label">AVG</span><span class="ctx-val">${avgVol}${U.volUnit} / session</span></div>
     <div class="ctx-row"><span class="ctx-label">PRS HIT</span><span class="ctx-val">${prCount}</span></div>
-    <div class="ctx-hint">est. 1RM = weight × (1 + reps/30) — smoother than raw max weight</div>`;
+    <div class="ctx-hint">${bw?'bodyweight lift — tracked by reps (all sets logged at 0kg)':'est. 1RM = weight × (1 + reps/30) — smoother than raw max weight'}</div>`;
 
   const canvas=document.getElementById('ex-chart');
   if(exChart) exChart.destroy();
@@ -1018,11 +1119,11 @@ function renderExChart(){
     },
     options:{
       responsive:true,animation:{duration:800,easing:'easeOutQuart'},interaction:{intersect:false,mode:'index'},
-      plugins:{legend:{display:false},tooltip:{backgroundColor:'#0d0d0d',titleColor:'#999',bodyColor:'#fff',borderColor:color+'60',borderWidth:0.5,padding:8,titleFont:{family:'Share Tech Mono',size:10},bodyFont:{family:'Share Tech Mono',size:11},callbacks:{label:c=>c.dataset.label==='Est. 1RM'?`1RM: ${c.parsed.y}kg${pts[c.dataIndex].isPR?' · NEW PR':''}`:`Volume: ${c.parsed.y}kg`}}},
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#0d0d0d',titleColor:'#999',bodyColor:'#fff',borderColor:color+'60',borderWidth:0.5,padding:8,titleFont:{family:'Share Tech Mono',size:10},bodyFont:{family:'Share Tech Mono',size:11},callbacks:{label:c=>c.dataset.yAxisID==='y1'?(bw?`Best: ${c.parsed.y} reps`:`1RM: ${c.parsed.y}kg`)+(pts[c.dataIndex].isPR?' · NEW PR':''):(bw?`Total: ${c.parsed.y} reps`:`Volume: ${c.parsed.y}kg`)}}},
       scales:{
         x:{ticks:{color:'#555',font:{size:10,family:'Share Tech Mono'},maxRotation:0},grid:{color:'rgba(255,255,255,0.04)'},border:{color:color+'40'}},
-        y1:{position:'left',title:{display:true,text:'1RM (KG)',color:color,font:{size:9,family:'Share Tech Mono',weight:'normal'}},ticks:{color:color,font:{size:10,family:'Share Tech Mono'}},grid:{color:'rgba(255,255,255,0.04)'},border:{color:color+'40'},beginAtZero:false},
-        y2:{position:'right',title:{display:true,text:'VOLUME (KG)',color:'#888',font:{size:9,family:'Share Tech Mono',weight:'normal'}},ticks:{color:'#888',font:{size:9,family:'Share Tech Mono'},callback:v=>fmtKg(v)},grid:{display:false},border:{color:'rgba(140,140,140,0.35)'},beginAtZero:true}
+        y1:{position:'left',title:{display:true,text:U.axis,color:color,font:{size:9,family:'Share Tech Mono',weight:'normal'}},ticks:{color:color,font:{size:10,family:'Share Tech Mono'}},grid:{color:'rgba(255,255,255,0.04)'},border:{color:color+'40'},beginAtZero:false},
+        y2:{position:'right',title:{display:true,text:U.volAxis,color:'#888',font:{size:9,family:'Share Tech Mono',weight:'normal'}},ticks:{color:'#888',font:{size:9,family:'Share Tech Mono'},callback:v=>fmtKg(v)},grid:{display:false},border:{color:'rgba(140,140,140,0.35)'},beginAtZero:true}
       }
     }
   });
@@ -1139,7 +1240,6 @@ function renderManage(){
     renderManageList(day);
   });
 }
-function escapeAttr(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function renderManageList(day){
   const list=document.getElementById('manage-list-'+day);
   if(!list) return;
@@ -1155,7 +1255,7 @@ function renderManageList(day){
         <button class="icon-btn commit-ok" onclick="commitRename('${day}')" aria-label="Save">✓</button>
         <button class="icon-btn" onclick="cancelRename('${day}')" aria-label="Cancel">✕</button>`;
     }else{
-      row.innerHTML=`<span class="ex-row-name">${ex.name}</span>
+      row.innerHTML=`<span class="ex-row-name">${esc(ex.name)}</span>
         <div class="ex-row-actions">
           <button class="icon-btn" onclick="moveEx('${day}',${i},-1)" ${i===0?'disabled':''}>↑</button>
           <button class="icon-btn" onclick="moveEx('${day}',${i},1)" ${i===exercises[day].length-1?'disabled':''}>↓</button>
@@ -1213,7 +1313,10 @@ function moveEx(day,i,dir){
 function updateRestUI(){
   const c=document.getElementById('rest-timer');
   if(!c) return;
+  // markup is only rebuilt when switching idle ↔ running; ticks just patch text/classes
   if(!restTimer){
+    if(c.dataset.mode==='idle') return;
+    c.dataset.mode='idle';
     c.className='rest-timer';
     c.innerHTML=`<div class="rest-head">
       <span class="rest-label">// REST_TIMER</span>
@@ -1223,41 +1326,60 @@ function updateRestUI(){
       <button class="rest-btn primary" onclick="startRest(90)">▶ 90s SHORT</button>
       <button class="rest-btn primary" onclick="startRest(180)">▶ 180s LONG</button>
     </div>`;
-  }else{
-    const mins=Math.floor(restTimer.remaining/60);
-    const secs=restTimer.remaining%60;
-    const pctRem=Math.max(0,(restTimer.remaining/restTimer.total)*100);
-    const warn=restTimer.remaining<=5;
+    return;
+  }
+  if(c.dataset.mode!=='run'){
+    c.dataset.mode='run';
     c.className='rest-timer active';
     c.innerHTML=`<div class="rest-head">
       <span class="rest-label">// REST_TIMER</span>
-      <span class="rest-time-display ${warn?'warn':''}">${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}</span>
+      <span class="rest-time-display" id="rest-time"></span>
     </div>
-    <div class="rest-bar-outer"><div class="rest-bar-fill ${warn?'warn':''}" style="width:${pctRem}%"></div></div>
+    <div class="rest-bar-outer"><div class="rest-bar-fill" id="rest-fill"></div></div>
     <div class="rest-controls">
       <button class="rest-btn primary" onclick="addRest(15)">+15s</button>
       <button class="rest-btn skip" onclick="cancelRest()">SKIP</button>
     </div>`;
   }
+  const rem=restTimer.remaining,warn=rem<=5;
+  const t=document.getElementById('rest-time'),f=document.getElementById('rest-fill');
+  t.textContent=`${String(Math.floor(rem/60)).padStart(2,'0')}:${String(rem%60).padStart(2,'0')}`;
+  t.classList.toggle('warn',warn);f.classList.toggle('warn',warn);
+  // the bar is one CSS transition to 0 over the whole remaining time (smooth, zero per-frame JS);
+  // re-armed only when the end time or total changes (+15s)
+  const key=restTimer.endsAt+'/'+restTimer.total;
+  if(f.dataset.key!==key){
+    f.dataset.key=key;
+    const msLeft=Math.max(0,restTimer.endsAt-Date.now());
+    f.style.transition='none';
+    f.style.transform=`scaleX(${Math.min(1,msLeft/1000/restTimer.total)})`;
+    f.offsetWidth; // commit the start value before transitioning
+    f.style.transition=`transform ${msLeft}ms linear`;
+    f.style.transform='scaleX(0)';
+  }
 }
+// remaining is derived from a wall-clock end time: intervals get throttled/paused
+// when the phone locks, so counting ticks would drift
 function startRest(sec){
   if(restTimer&&restTimer.intervalId) clearInterval(restTimer.intervalId);
-  restTimer={total:sec,remaining:sec,intervalId:null};
-  restTimer.intervalId=setInterval(tickRest,1000);
+  unlockAudio(); // called from a tap, so iOS lets the context start
+  restTimer={total:sec,endsAt:Date.now()+sec*1000,remaining:sec,intervalId:null};
+  restTimer.intervalId=setInterval(tickRest,250);
   updateRestUI();
 }
 function tickRest(){
   if(!restTimer) return;
-  restTimer.remaining--;
-  if(restTimer.remaining<=0){
+  const rem=Math.ceil((restTimer.endsAt-Date.now())/1000);
+  if(rem<=0){
     clearInterval(restTimer.intervalId);
     restTimer=null;
     restComplete();
     return;
   }
-  updateRestUI();
+  if(rem!==restTimer.remaining){restTimer.remaining=rem;updateRestUI();}
 }
-function addRest(sec){if(!restTimer) return;restTimer.total+=sec;restTimer.remaining+=sec;updateRestUI();}
+function addRest(sec){if(!restTimer) return;restTimer.total+=sec;restTimer.endsAt+=sec*1000;restTimer.remaining+=sec;updateRestUI();}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden) tickRest();});
 function cancelRest(){if(restTimer&&restTimer.intervalId) clearInterval(restTimer.intervalId);restTimer=null;updateRestUI();}
 function restComplete(){
   playBeep();
@@ -1267,11 +1389,20 @@ function restComplete(){
   if(t){t.classList.add('done');setTimeout(()=>t.classList.remove('done'),2000);}
   toast('REST COMPLETE');
 }
-function playBeep(){
+let audioCtx=null;
+function unlockAudio(){
   try{
     const AC=window.AudioContext||window.webkitAudioContext;
-    if(!AC) return;
-    const ctx=new AC();
+    if(!AC) return null;
+    if(!audioCtx) audioCtx=new AC();
+    if(audioCtx.state==='suspended') audioCtx.resume();
+  }catch(e){}
+  return audioCtx;
+}
+function playBeep(){
+  try{
+    const ctx=unlockAudio();
+    if(!ctx) return;
     const beep=(freq,delay,dur=0.25)=>{
       const osc=ctx.createOscillator();
       const gain=ctx.createGain();
