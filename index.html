@@ -485,7 +485,7 @@ let editingSession=null,pendingSessionDelete=null,pendingSessionDeleteTimer=null
 let traceView='ex';
 let restTimer=null;
 let pendingImport=null,pendingImportTimer=null;
-let backupHandle=null,backupState={supported:!!(window.showSaveFilePicker),linked:false,name:null,lastWrite:null,permission:'unknown'};
+let backupHandle=null,backupState={supported:!!(window.showSaveFilePicker),linked:false,name:null,lastWrite:null,permission:'unknown',error:null};
 let backupDebounceTimer=null;
 
 function persist(){
@@ -580,13 +580,15 @@ async function writeBackupNow(){
     backupState.permission='granted';
     const w=await backupHandle.createWritable();
     await w.write(backupPayload());await w.close();
-    backupState.lastWrite=Date.now();
+    backupState.lastWrite=Date.now();backupState.error=null;
     localStorage.setItem('ppl_last_backup',String(backupState.lastWrite));
     return true;
   }catch(e){
-    console.error(e);toast('BACKUP WRITE FAILED');backupState.permission='error';updateBackupStatus();return false;
+    console.error(e);backupState.error=backupErrReason(e);toast('BACKUP WRITE FAILED · '+backupState.error);backupState.permission='error';updateBackupStatus();return false;
   }
 }
+// permission can be granted while the write still fails — name the cause so the user knows to relink
+function backupErrReason(e){const n=e&&e.name;return n==='NotFoundError'?'FILE MOVED OR DELETED':(n==='NoModificationAllowedError'||n==='InvalidStateError')?'FILE LOCKED · CLOSE IT ELSEWHERE':n==='QuotaExceededError'?'DISK FULL':String(n||'UNKNOWN ERROR').toUpperCase();}
 
 async function autoBackupSilent(){
   if(!backupHandle) return {ok:false,reason:'no-handle'};
@@ -596,11 +598,11 @@ async function autoBackupSilent(){
     backupState.permission='granted';
     const w=await backupHandle.createWritable();
     await w.write(backupPayload());await w.close();
-    backupState.lastWrite=Date.now();
+    backupState.lastWrite=Date.now();backupState.error=null;
     localStorage.setItem('ppl_last_backup',String(backupState.lastWrite));
     return {ok:true};
   }catch(e){
-    backupState.permission='error';return {ok:false,reason:'error'};
+    console.error(e);backupState.error=backupErrReason(e);backupState.permission='error';return {ok:false,reason:'error'};
   }
 }
 
@@ -650,6 +652,21 @@ function updateBackupStatus(){
   const last=backupState.lastWrite;
   const daysSince=last?Math.floor((Date.now()-last)/86400000):999;
   const permBad=backupState.permission==='denied'||backupState.permission==='prompt'||backupState.permission==='error';
+  if(backupState.permission==='error'){
+    block.innerHTML=`<div class="backup-status warn">
+      <div><b>▪ STATUS:</b> <span class="st-warn">WRITE FAILED</span></div>
+      <div><b>file:</b> ${esc(backupState.name)}</div>
+      <div><b>last write:</b> ${fmtAgo(last)}</div>
+      <div><b>reason:</b> ${esc(backupState.error||'unknown')}</div>
+      <div>your data is safe in the app. RETRY, or RELINK to pick the file again (or a new one).</div>
+      <div class="backup-actions">
+        <button class="backup-btn warn-btn" onclick="reconnectBackup()">▶ RETRY</button>
+        <button class="backup-btn primary" onclick="pickBackupFile()">RELINK</button>
+        <button class="backup-btn danger" onclick="unlinkBackup()">UNLINK</button>
+      </div>
+    </div>`;
+    return;
+  }
   if(permBad){
     block.innerHTML=`<div class="backup-status warn">
       <div><b>▪ STATUS:</b> <span class="st-warn">RECONNECT NEEDED</span></div>
@@ -921,6 +938,7 @@ function saveSession(btn){
     autoBackupSilent().then(r=>{
       if(r&&r.ok) toast('SESSION COMMITTED · BACKUP WRITTEN');
       else if(r&&r.reason==='no-permission') toast('SESSION COMMITTED · RECONNECT BACKUP');
+      else if(r&&r.reason==='error') toast('SESSION COMMITTED · BACKUP FAILED · SEE DB');
       updateBackupStatus();
     });
   }
