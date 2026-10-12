@@ -578,14 +578,19 @@ async function writeBackupNow(){
     if(perm!=='granted'){perm=await backupHandle.requestPermission({mode:'readwrite'});}
     if(perm!=='granted'){backupState.permission='denied';toast('PERMISSION DENIED');updateBackupStatus();return false;}
     backupState.permission='granted';
-    const w=await backupHandle.createWritable();
-    await w.write(backupPayload());await w.close();
+    await writeBackupFile();
     backupState.lastWrite=Date.now();backupState.error=null;
     localStorage.setItem('ppl_last_backup',String(backupState.lastWrite));
     return true;
   }catch(e){
     console.error(e);backupState.error=backupErrReason(e);toast('BACKUP WRITE FAILED · '+backupState.error);backupState.permission='error';updateBackupStatus();return false;
   }
+}
+// one write at a time; a write that fails part-way is aborted so it can't leave the file locked until restart
+let backupWriteChain=Promise.resolve();
+function writeBackupFile(){
+  const run=async()=>{const w=await backupHandle.createWritable();try{await w.write(backupPayload());await w.close();}catch(e){try{await w.abort();}catch(_){}throw e;}};
+  const p=backupWriteChain.then(run,run);backupWriteChain=p.catch(()=>{});return p;
 }
 // permission can be granted while the write still fails — name the cause so the user knows to relink
 function backupErrReason(e){const n=e&&e.name;return n==='NotFoundError'?'FILE MOVED OR DELETED':(n==='NoModificationAllowedError'||n==='InvalidStateError')?'FILE LOCKED · CLOSE IT ELSEWHERE':n==='QuotaExceededError'?'DISK FULL':String(n||'UNKNOWN ERROR').toUpperCase();}
@@ -596,8 +601,7 @@ async function autoBackupSilent(){
     const perm=await backupHandle.queryPermission({mode:'readwrite'});
     if(perm!=='granted'){backupState.permission=perm;return {ok:false,reason:'no-permission'};}
     backupState.permission='granted';
-    const w=await backupHandle.createWritable();
-    await w.write(backupPayload());await w.close();
+    await writeBackupFile();
     backupState.lastWrite=Date.now();backupState.error=null;
     localStorage.setItem('ppl_last_backup',String(backupState.lastWrite));
     return {ok:true};
